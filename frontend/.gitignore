@@ -1,0 +1,13 @@
+# Local dev secrets/config — keep out of git
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/

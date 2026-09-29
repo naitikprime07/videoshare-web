@@ -1,0 +1,16 @@
+# Local dev secrets for `npm run dev` (wrangler dev reads this file; never commit it).
+# Copy to .dev.vars and fill in. On the live Worker the same three names are set with
+#   npx wrangler secret put SIGNING_SECRET   (etc.)
+# Anything long and random works for the secret, e.g.:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+SIGNING_SECRET=
+ADMIN_PASSWORD=admin123
+# Second lock on the upload endpoints only (/api/dashboard/uploads…): sending a file into the
+# bucket also needs this as the `X-Api-Key` header, so a leaked password or a stolen token alone
+# cannot fill your storage. Empty = check off.
+API_KEY=
+
+# Only the one-off Mongo→D1 data migration needs this (scripts/migrate-mongo-to-d1.mjs);
+# the Worker itself never talks to MongoDB.
+MONGODB_URI=

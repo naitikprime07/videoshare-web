@@ -1,0 +1,26 @@
+{
+  "name": "videoshare-web",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "api",
+    "worker",
+    "frontend",
+    "scripts"
+  ],
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply vidshare --local",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply vidshare --remote",
+    "migrate:mongo": "node scripts/migrate-mongo-to-d1.mjs",
+    "test:e2e": "node test/e2e.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260926.1": true
+  }
+}

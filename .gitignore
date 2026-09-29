@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# secrets and local dev state — never commit
+.env
+.env.local
+.dev.vars
+.wrangler/
+
+# local media left over from the pre-R2 disk backend (R2 + D1 hold everything now)
+backend/data/
+data/
+
+# the old separate Node+Mongo backend, now replaced by api/ + worker/. Kept on disk only so the
+# one-time migration (scripts/migrate-mongo-to-d1.mjs) can still read backend/.env; delete it once
+# you have migrated.
+/backend/
+
+# OS
+Thumbs.db
+.DS_Store

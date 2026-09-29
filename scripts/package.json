@@ -1,0 +1,8 @@
+{
+  "name": "@vidshare/scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^6.16.0"
+  }
+}

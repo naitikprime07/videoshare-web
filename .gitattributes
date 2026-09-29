@@ -1,0 +1,3 @@
+# One line-ending rule for the whole repo: LF in the repository, LF on checkout too
+# (the Worker, wrangler and the e2e test all run fine with LF on Windows).
+* text=auto eol=lf

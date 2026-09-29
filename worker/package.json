@@ -1,0 +1,10 @@
+{
+  "name": "@vidshare/worker",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@vidshare/api": "*",
+    "hono": "^4.9.0"
+  }
+}

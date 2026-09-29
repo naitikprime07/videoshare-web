@@ -1,0 +1,13 @@
+{
+  "name": "@vidshare/api",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./cleanup": "./src/cleanup.js"
+  },
+  "dependencies": {
+    "hono": "^4.9.0"
+  }
+}

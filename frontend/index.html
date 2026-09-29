@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VidShare — Free on Android</title>
+<meta name="description" content="Tap a video link and watch it in the free Android app.">
+<meta name="theme-color" content="#1F7A1F">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="/share.css">
+<script src="/config.js"></script>
+<script>
+  (function () {
+    var m = null;
+    try { m = localStorage.getItem('themeMode'); } catch (e) {}
+    document.documentElement.dataset.theme = m || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  })();
+</script>
+</head>
+<body>
+<header class="appbar">
+  <div class="container">
+    <div class="toolbar">
+      <a href="/" class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span data-name>VidShare</span></a>
+      <nav class="appbar-nav" id="appbar-nav">
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#faq-top">FAQ</a>
+        <a class="nav-cta" href="/login/">Login</a>
+      </nav>
+      <div class="appbar-actions">
+        <button class="mode-toggle" type="button" aria-label="button to toggle theme" data-mode>
+          <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.93 2.3c-2.04-.5-4.02-.35-5.77.28-.72.26-.91 1.22-.31 1.71C8.08 6.12 9.5 8.89 9.5 12c0 3.11-1.42 5.88-3.65 7.71-.59.49-.42 1.45.31 1.7 1.04.38 2.17.59 3.34.59 6.05 0 10.85-5.38 9.87-11.6-.61-3.92-3.59-7.16-7.44-8.1"/></svg>
+          <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+        </button>
+        <button class="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="appbar-nav" data-menu>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a class="btn contained" href="/login/">Login</a>
+      </div>
+    </div>
+  </div>
+</header>
+<main>
+<div class="hero">
+  <div class="container">
+    <section class="banner">
+      <span class="chip">Free Video Player for Android</span>
+      <h1>Tap the Link. <b>Watch the Video.</b></h1>
+      <p class="lead">Got a video link on WhatsApp or Telegram? Install the free <span data-name>VidShare</span> app and tap the link — the video opens straight in the app, no browser hoops.</p>
+      <div class="banner-actions">
+        <a class="btn contained large" href="#" data-store target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>Get the App — Free</a>
+        <a class="btn outlined large" href="#how"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 1.01L7 2c-1.1.9-2 2-2 3.5v13c0 1.5.9 2.6 2 3h10c1.1-.4 2-1.5 2-3V5.5c0-1.5-.9-2.6-2-3.49zM12 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm4-8H8V6h8v5z"/></svg>See How It Works</a>
+      </div>
+      <p class="banner-note">Free forever · Opens straight from your chats</p>
+      <div class="trust-row">
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>100% free</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>Full-screen player</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>Opens instantly from chats</span>
+      </div>
+      <div class="badges"><a href="#" data-store target="_blank" rel="noopener noreferrer"><img src="/google-play-badge.png" alt="Get it on Google Play"></a></div>
+      <div class="works-card">
+        <span class="works-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>WhatsApp</span>
+        <span class="works-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>Telegram</span>
+        <span class="works-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>Instant open</span>
+      </div>
+    </section>
+  </div>
+  <div class="container sm">
+    <section class="promo">
+      <span class="chip">Free on Android</span>
+      <h6>Get the <span data-name>VidShare</span> App</h6>
+      <p class="lead">Got a video link on WhatsApp or Telegram? Install the free app and tap the link. The video opens straight in the app.</p>
+      <div class="badges"><a href="#" data-store target="_blank" rel="noopener noreferrer"><img src="/google-play-badge.png" alt="Get it on Google Play"></a></div>
+    </section>
+  </div>
+  <div class="container lg">
+    <section class="section" id="how">
+      <span class="chip">How it works</span>
+      <h2>Three taps to <b>watch</b></h2>
+      <p class="sub">No browser players, no downloads to wait for. The app opens the video for you.</p>
+      <div class="step-grid">
+        <div class="glass-card step">
+          <span class="step-num">1</span>
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></span>
+          <h3 class="file-name">Install the app</h3>
+          <p class="lead">Grab <span data-name>VidShare</span> free from Google Play. It takes a few seconds.</p>
+        </div>
+        <div class="glass-card step">
+          <span class="step-num">2</span>
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></span>
+          <h3 class="file-name">Tap the video link</h3>
+          <p class="lead">Share a video link in WhatsApp or Telegram. Tapping it opens straight in the app.</p>
+        </div>
+        <div class="glass-card step">
+          <span class="step-num">3</span>
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></span>
+          <h3 class="file-name">Watch instantly</h3>
+          <p class="lead">The video plays in a clean full-screen player. No waiting, no fuss.</p>
+        </div>
+      </div>
+    </section>
+    <section class="section" id="features">
+      <span class="chip">Why VidShare</span>
+      <h2>Built for <b>shared links</b></h2>
+      <p class="sub">Everything you need to watch a video a friend sent you — nothing you don't.</p>
+      <div class="feature-grid">
+        <div class="glass-card feature">
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></span>
+          <div>
+            <h3 class="file-name">WhatsApp &amp; Telegram ready</h3>
+            <p class="lead">Video links shared in chats open directly in the app — no copy-paste into a browser.</p>
+          </div>
+        </div>
+        <div class="glass-card feature">
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg></span>
+          <div>
+            <h3 class="file-name">Fast, clean player</h3>
+            <p class="lead">A full-screen player with no ads blocking the video. Tap, watch, done.</p>
+          </div>
+        </div>
+        <div class="glass-card feature">
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg></span>
+          <div>
+            <h3 class="file-name">Lightweight &amp; fast</h3>
+            <p class="lead">A small download that runs smoothly on most Android phones. Install it and forget it's there.</p>
+          </div>
+        </div>
+        <div class="glass-card feature">
+          <span class="type-circle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></span>
+          <div>
+            <h3 class="file-name">100% free</h3>
+            <p class="lead">Every feature is free forever. Watching a friend's link should never cost money.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+<section class="faq" id="faq-top">
+  <div class="container sm">
+    <span class="chip">FAQ</span>
+    <h2>Questions, <b>answered</b></h2>
+    <p class="sub">Still stuck? The app itself takes care of the rest.</p>
+    <div class="faq-list">
+      <details class="acc">
+        <summary><span class="q">What is <span data-name>VidShare</span>?</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></summary>
+        <div class="answer">It's a free Android app that opens video links you receive on WhatsApp or Telegram straight into a clean full-screen player — no browser hoops.</div>
+      </details>
+      <details class="acc">
+        <summary><span class="q">Is it really free?</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></summary>
+        <div class="answer">Yes. Install it from Google Play and everything works without paying anything.</div>
+      </details>
+      <details class="acc">
+        <summary><span class="q">Which links does it open?</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></summary>
+        <div class="answer">Video links shared through the app's own pages (the links that look like <b>/app/…</b>). Tap one in a chat and Android opens the video in the app.</div>
+      </details>
+      <details class="acc">
+        <summary><span class="q">Which phones does it work on?</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></summary>
+        <div class="answer">Android phones. Install the free app from Google Play, then just tap a video link in your chat — it opens in the app.</div>
+      </details>
+    </div>
+  </div>
+</section>
+</div>
+</main>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <a href="/" class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span data-name>VidShare</span></a>
+        <p class="blurb">The free Android app that turns a video link in your chat into a video on your screen. Two taps and you're watching.</p>
+        <div class="badges"><a href="#" data-store target="_blank" rel="noopener noreferrer"><img src="/google-play-badge.png" alt="Get it on Google Play"></a></div>
+      </div>
+      <div class="footer-col">
+        <span class="overline">Explore</span>
+        <nav class="footer-links">
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#faq-top">FAQ</a>
+        </nav>
+      </div>
+      <div class="footer-col end">
+        <span class="overline">Legal</span>
+        <nav class="footer-links">
+          <a href="/privacy/">Privacy Policy</a>
+          <a href="/terms/">Terms &amp; Service</a>
+        </nav>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year></span> <span data-name>VidShare</span>. All rights reserved.</span>
+      <nav><a href="/privacy/">Privacy Policy</a><a href="/terms/">Terms &amp; Service</a></nav>
+    </div>
+  </div>
+</footer>
+<script>
+  document.querySelector('[data-year]').textContent = new Date().getFullYear();
+  document.querySelector('[data-mode]').addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('themeMode', next); } catch {}
+  });
+  // Mobile header drawer: open/close; close on link tap or outside click.
+  const appbar = document.querySelector('.appbar');
+  const menuBtn = document.querySelector('[data-menu]');
+  const closeMenu = () => {
+    appbar.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.setAttribute('aria-label', 'Open menu');
+  };
+  menuBtn.addEventListener('click', () => {
+    const open = appbar.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', String(open));
+    menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  document.querySelectorAll('.appbar-nav a').forEach((a) => a.addEventListener('click', closeMenu));
+  document.addEventListener('click', (e) => {
+    if (!appbar.classList.contains('open')) return;
+    if (e.target.closest('.appbar-nav') || e.target.closest('[data-menu]')) return;
+    closeMenu();
+  });
+  // Store link: the .env / config.js default first, then the API value when it exists —
+  // so "Get the App" never ends up with an undefined href.
+  const applyStoreUrl = (url) => {
+    if (!url || url === 'undefined') return;
+    document.querySelectorAll('[data-store]').forEach((a) => { a.href = url; });
+  };
+  applyStoreUrl(window.PLAY_STORE_URL);
+  fetch(`${window.API_BASE}/api/app/config`).then((r) => r.json()).then((cfg) => {
+    applyStoreUrl(cfg.playStoreUrl);
+    if (cfg.appName) {
+      document.querySelectorAll('[data-name]').forEach((el) => { el.textContent = cfg.appName; });
+      document.title = `${cfg.appName} — Free on Android`;
+    }
+  }).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+# ---- Cloudflare Worker: one app serves frontend + API ----
+name = "vidshare"
+main = "worker/index.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The static frontend. Anything that is a real file under frontend/ (/, /dashboard/, share.css,
+# config.js …) is served straight from Cloudflare's edge; the Worker only sees the API, media and
+# server-rendered share-page paths. /privacy is the one path where a static file exists but the
+# Worker's dynamic page (APP_NAME/SUPPORT_EMAIL from config) should win.
+assets = { directory = "frontend", binding = "ASSETS", run_worker_first = ["/privacy"] }
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "vidshare-media"   # create it (or rename to your existing bucket): npx wrangler r2 bucket create vidshare-media
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vidshare"
+database_id = "REPLACE-AFTER-npx-wrangler-d1-create-vidshare"
+migrations_dir = "api/migrations"
+
+# A stale-upload + expired-token sweep twice a day (worker/index.js `scheduled`).
+[triggers]
+crons = ["0 */6 * * *"]
+
+# ---- Non-secret config (the old .env keys minus the secrets) ----
+# Secrets are NOT here: SIGNING_SECRET, ADMIN_PASSWORD, API_KEY live in
+#   local : .dev.vars            (copy .dev.vars.example)
+#   live  : npx wrangler secret put <NAME>
+
+[vars]
+APP_NAME = "VidShare"
+ADMIN_USERNAME = "admin"
+ADMIN_TOKEN_TTL_HOURS = "12"
+CHANNEL_NAME = "VidShare"
+TIMEZONE = "Asia/Kolkata"
+# Your public domain, e.g. https://vidshare.in (no trailing slash). Empty = use the request's domain.
+PUBLIC_URL = ""
+SUPPORT_EMAIL = "support@example.com"
+
+# ---- Android App Links (must match the Android app) ----
+ANDROID_PACKAGE = "com.vidshare.app"
+# SHA-256 of the *Play App Signing* key (Play Console -> Setup -> App integrity). Comma separated.
+ANDROID_SHA256 = ""
+
+# ---- iOS Universal Links (optional, leave empty if no iOS app) ----
+IOS_APP_ID = ""
+IOS_APP_STORE_URL = ""
+
+# ---- View counting ----
+MIN_WATCH_SECONDS = "10"
+MAX_VIEWS_PER_IP_DAY = "3"
+MAX_UPLOAD_MB = "4096"
+# The Worker streams bytes straight from R2 (no bucket link to expire any more), so this is only
+# how long a player may cache one byte-window response before asking for the next window.
+MEDIA_CACHE_SECONDS = "600"
+
+# ---- Android app remote config ----
+MIN_APP_VERSION = "1"
+ADS_ENABLED = "true"
+AD_BANNER_ID = "ca-app-pub-3940256099942544/9214589741"
+AD_INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712"
+TUTORIAL_YOUTUBE_ID = ""
+
+# ---- Web ads on the share page (single-line HTML) ----
+WEB_AD_HEAD = ""
+WEB_AD_TOP = ""
+WEB_AD_BOTTOM = ""

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — VidShare</title>
+<meta name="theme-color" content="#1F7A1F">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap">
+<link rel="stylesheet" href="/share.css">
+<script src="/config.js"></script>
+<script>
+  (function () {
+    var m = null;
+    try { m = localStorage.getItem('themeMode'); } catch (e) {}
+    document.documentElement.dataset.theme = m || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  })();
+  // Already logged in (valid, unexpired token): skip the login form.
+  (function () {
+    var t = null, exp = 0;
+    try { t = localStorage.getItem('authToken'); exp = Number(localStorage.getItem('authExpiresAt')) || 0; } catch (e) {}
+    if (t && (!exp || exp > Date.now())) window.location.replace('/dashboard#overview');
+  })();
+</script>
+</head>
+<body>
+<header class="appbar">
+  <div class="container">
+    <div class="toolbar">
+      <a href="/" class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span data-name>VidShare</span></a>
+      <nav class="appbar-nav" id="appbar-nav">
+        <a href="/#how">How it works</a>
+        <a href="/#features">Features</a>
+        <a href="/#faq-top">FAQ</a>
+      </nav>
+      <div class="appbar-actions">
+        <button class="mode-toggle" type="button" aria-label="button to toggle theme" data-mode>
+          <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11.93 2.3c-2.04-.5-4.02-.35-5.77.28-.72.26-.91 1.22-.31 1.71C8.08 6.12 9.5 8.89 9.5 12c0 3.11-1.42 5.88-3.65 7.71-.59.49-.42 1.45.31 1.7 1.04.38 2.17.59 3.34.59 6.05 0 10.85-5.38 9.87-11.6-.61-3.92-3.59-7.16-7.44-8.1"/></svg>
+          <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+        </button>
+        <button class="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="appbar-nav" data-menu>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+<main>
+<div class="hero">
+  <div class="container sm">
+    <section class="glass-card login-card">
+      <span class="chip">Creator Login</span>
+      <h6>Welcome back</h6>
+      <p class="lead">Sign in to open your <span data-name>VidShare</span> dashboard.</p>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="your username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <button class="btn contained large submit-btn" type="submit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7 9.6 5.6 5 10.2l6.6 6.6L13 15.4l-4-4.2 2-4.2zM20 4h-9v2h9v12h-9v2h9c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/></svg>
+          Log in
+        </button>
+      </form>
+    </section>
+  </div>
+</div>
+</main>
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <a href="/" class="logo"><span class="logo-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span><span data-name>VidShare</span></a>
+        <p class="blurb">The free Android app that turns a video link in your chat into a video on your screen. Two taps and you're watching.</p>
+        <div class="badges"><a href="#" data-store target="_blank" rel="noopener noreferrer"><img src="/google-play-badge.png" alt="Get it on Google Play"></a></div>
+      </div>
+      <div class="footer-col">
+        <span class="overline">Explore</span>
+        <nav class="footer-links">
+          <a href="/#how">How it works</a>
+          <a href="/#features">Features</a>
+          <a href="/#faq-top">FAQ</a>
+        </nav>
+      </div>
+      <div class="footer-col end">
+        <span class="overline">Legal</span>
+        <nav class="footer-links">
+          <a href="/privacy/">Privacy Policy</a>
+          <a href="/terms/">Terms &amp; Service</a>
+        </nav>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span data-year></span> <span data-name>VidShare</span>. All rights reserved.</span>
+      <nav><a href="/privacy/">Privacy Policy</a><a href="/terms/">Terms &amp; Service</a></nav>
+    </div>
+  </div>
+</footer>
+<div class="toast" role="status" aria-live="polite" id="toast" hidden></div>
+<script>
+  // ---------- Login (real API) ----------
+  // POSTs { username, password } to the backend and stores the returned token in
+  // localStorage under 'authToken' — the dashboard gate and logout read the same key.
+  const form = document.getElementById('login-form');
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  // Snackbar (top-right), like the dashboard's: green for success, red for error.
+  const toastEl = document.getElementById('toast');
+  let toastTimer;
+  function showToast(text, type = 'success') {
+    const icons = {
+      success: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>',
+      error: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>',
+    };
+    toastEl.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[type === 'error' ? 'error' : 'success']}</svg><span></span>`;
+    toastEl.querySelector('span').textContent = text;
+    toastEl.className = type === 'error' ? 'toast error' : 'toast success';
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2600);
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    if (!username) { showToast('Please enter your username.', 'error'); return; }
+    if (!password) { showToast('Please enter your password.', 'error'); return; }
+
+    submitBtn.disabled = true;
+    const btnHtml = submitBtn.innerHTML;
+    submitBtn.textContent = 'Signing in…';
+    let done = false;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      // Accept the common response shapes until the API contract is fixed.
+      const token = data.token || data.accessToken || data.jwt || (data.data && data.data.token);
+      if (!res.ok || !token) {
+        showToast(data.error || data.message || 'Incorrect username or password.', 'error');
+        return;
+      }
+      // Session: token + its expiry (the API returns expiresAt as a ms timestamp) + username.
+      try {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('authExpiresAt', String(data.expiresAt || Date.now() + 24 * 60 * 60 * 1000));
+        if (data.username) localStorage.setItem('authUser', data.username);
+      } catch {
+      }
+      done = true;
+      submitBtn.textContent = 'Logged in ✓';
+      showToast('Login successful — opening dashboard…', 'success');
+      setTimeout(() => { window.location.href = '/dashboard#overview'; }, 900);
+    } catch {
+      showToast('Cannot reach the server. Please try again.', 'error');
+    } finally {
+      if (!done) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = btnHtml;
+      }
+    }
+  });
+
+  document.querySelector('[data-year]').textContent = new Date().getFullYear();
+  document.querySelector('[data-mode]').addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('themeMode', next); } catch {}
+  });
+  // Mobile header drawer: open/close; close on link tap or outside click.
+  const appbar = document.querySelector('.appbar');
+  const menuBtn = document.querySelector('[data-menu]');
+  const closeMenu = () => {
+    appbar.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.setAttribute('aria-label', 'Open menu');
+  };
+  menuBtn.addEventListener('click', () => {
+    const open = appbar.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', String(open));
+    menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  document.querySelectorAll('.appbar-nav a').forEach((a) => a.addEventListener('click', closeMenu));
+  document.addEventListener('click', (e) => {
+    if (!appbar.classList.contains('open')) return;
+    if (e.target.closest('.appbar-nav') || e.target.closest('[data-menu]')) return;
+    closeMenu();
+  });
+  // Store link: the .env / config.js default first, then the API value when it exists.
+  const applyStoreUrl = (url) => {
+    if (!url || url === 'undefined') return;
+    document.querySelectorAll('[data-store]').forEach((a) => { a.href = url; });
+  };
+  applyStoreUrl(window.PLAY_STORE_URL);
+  fetch(`${window.API_BASE}/api/app/config`).then((r) => r.json()).then((cfg) => {
+    applyStoreUrl(cfg.playStoreUrl);
+    if (!cfg.appName) return;
+    document.querySelectorAll('[data-name]').forEach((el) => { el.textContent = cfg.appName; });
+    document.title = `Login — ${cfg.appName}`;
+  }).catch(() => {});
+</script>
+</body>
+</html>
