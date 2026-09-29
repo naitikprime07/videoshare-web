@@ -6,9 +6,9 @@
 
 SIGNING_SECRET=
 ADMIN_PASSWORD=admin123
-# Second lock on the upload endpoints only (/api/dashboard/uploads…): sending a file into the
-# bucket also needs this as the `X-Api-Key` header, so a leaked password or a stolen token alone
-# cannot fill your storage. Empty = check off.
+# Optional second lock on the upload endpoints (/api/dashboard/uploads…): also needs this as the
+# `X-Api-Key` header. Leave EMPTY for a web dashboard — the admin login token already protects uploads,
+# and a same-origin dashboard cannot hold this key privately (set it and uploads 401 + log you out).
 API_KEY=
 
 # Only the one-off Mongo→D1 data migration needs this (scripts/migrate-mongo-to-d1.mjs);

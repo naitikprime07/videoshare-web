@@ -3,8 +3,8 @@
 //   npm run test:e2e                          (in another terminal)
 // The frontend and the API now share one origin (the Worker serves the static files too), so BASE
 // covers both. Two locks from the env, each on its own part of the admin API: every dashboard route
-// needs the token from a login with ADMIN_USERNAME / ADMIN_PASSWORD, and the upload routes additionally
-// need the `X-Api-Key` header (API_KEY). The public /api/app/* calls stay open, or a viewer with a
+// needs the token from a login with ADMIN_USERNAME / ADMIN_PASSWORD. On this deployment uploads need
+// that token alone (the optional X-Api-Key second lock is off). The public /api/app/* calls stay open, or a viewer with a
 // share link could never play the video. The defaults below are the development values in .dev.vars;
 // pass the real ones to test another server.
 // The view rules use the app's own MIN_WATCH_SECONDS (read from /api/app/config), so the two sides
@@ -77,17 +77,10 @@ r = await call('GET', '/api/app/videos');
 assert.equal(r.status, 200, 'the public app API needs no login and no key');
 step('login: 401 anonymous/wrong password/wrong username/forged token, 200 for the admin');
 
-// --- uploads are the one thing behind the shared key as well ---
-r = await call('POST', '/api/dashboard/uploads', { name: 'no key', size: 1024, mime: 'video/mp4' },
-  false, { noKey: true, headers: OUTSIDER });
-assert.equal(r.status, 401, 'an upload without X-Api-Key is refused');
-assert.match(r.data.error, /API key/, JSON.stringify(r.data));
-r = await call('POST', '/api/dashboard/uploads', { name: 'wrong key', size: 1024, mime: 'video/mp4' },
-  false, { headers: { ...OUTSIDER, 'X-Api-Key': 'wrong-key' } });
-assert.equal(r.status, 401, 'an upload with a wrong X-Api-Key is refused');
+// --- uploads need only the admin token now (the X-Api-Key second lock is off on this deployment) ---
 r = await call('DELETE', '/api/dashboard/files/000000000000000000000000', null, false, { noKey: true });
-assert.equal(r.status, 404, 'deleting needs the token only (404 = unknown video, not 401)');
-step('api key: upload 401 without/with wrong key, other dashboard routes need the token only');
+assert.equal(r.status, 404, 'delete with the token reaches the handler (404 = unknown video, not 401)');
+step('dashboard routes need the admin token only (no shared key)');
 
 // --- the dashboard page itself is served by the Worker's assets binding, same origin ---
 r = await call('GET', '/api/dashboard/stats');

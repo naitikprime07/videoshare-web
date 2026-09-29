@@ -12,12 +12,12 @@ assets = { directory = "frontend", binding = "ASSETS", run_worker_first = ["/pri
 
 [[r2_buckets]]
 binding = "R2"
-bucket_name = "vidshare-media"   # create it (or rename to your existing bucket): npx wrangler r2 bucket create vidshare-media
+bucket_name = "vidshare-files"   # the existing bucket with all videos/thumbnails (backend/.env → R2_BUCKET)
 
 [[d1_databases]]
 binding = "DB"
 database_name = "vidshare"
-database_id = "REPLACE-AFTER-npx-wrangler-d1-create-vidshare"
+database_id = "0b2c8bb9-db50-4cc2-b973-496228bc5b2b"
 migrations_dir = "api/migrations"
 
 # A stale-upload + expired-token sweep twice a day (worker/index.js `scheduled`).
@@ -42,7 +42,7 @@ SUPPORT_EMAIL = "support@example.com"
 # ---- Android App Links (must match the Android app) ----
 ANDROID_PACKAGE = "com.vidshare.app"
 # SHA-256 of the *Play App Signing* key (Play Console -> Setup -> App integrity). Comma separated.
-ANDROID_SHA256 = ""
+ANDROID_SHA256 = "5F:76:64:BD:C8:4A:B1:E6:15:84:D5:91:DB:B2:3B:CE:7C:F9:62:72:82:A9:50:5F:EB:BB:DB:9A:CB:EF:40:D2"
 
 # ---- iOS Universal Links (optional, leave empty if no iOS app) ----
 IOS_APP_ID = ""
