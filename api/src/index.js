@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { appApi } from './app-api.js';
 import { auth } from './auth.js';
 import { dashboard } from './dashboard-api.js';
+import { publicApi } from './public-api.js';
 import { streamMedia, thumbnail } from './media.js';
 import { appleAppSiteAssociation, assetLinks, creatorPage, filePage, privacyPage } from './pages.js';
 
@@ -21,6 +22,8 @@ export function createApp() {
   app.route('/api/auth', auth);
   app.route('/api/dashboard', dashboard);
   app.route('/api/app', appApi);
+  // Public, no-auth reads (e.g. GET /api/videos) — the same list the dashboard shows, minus the login.
+  app.route('/api', publicApi);
 
   app.get('/media/:id', streamMedia);
   app.get('/t/:id', thumbnail);
