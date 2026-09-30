@@ -44,7 +44,7 @@ export async function filePage(c) {
     body: `
       <main class="hero">
         <div class="container sm">
-          ${adSlot(c.env.WEB_AD_TOP)}
+          ${adRegion(c, c.env.WEB_AD_TOP, 'top')}
           <section class="glass-card">
             <span class="chip">${icon('file')}Shared File</span>
             <div class="type-circle">${icon('videocam')}</div>
@@ -68,7 +68,7 @@ export async function filePage(c) {
               </div>
             </div>
           </section>
-          ${adSlot(c.env.WEB_AD_BOTTOM)}
+          ${adRegion(c, c.env.WEB_AD_BOTTOM, 'bottom')}
           ${openInApp(c, 'File', true)}
         </div>
       </main>
@@ -91,7 +91,7 @@ export async function creatorPage(c) {
     body: `
       <main class="hero">
         <div class="container sm">
-          ${adSlot(c.env.WEB_AD_TOP)}
+          ${adRegion(c, c.env.WEB_AD_TOP, 'top')}
           <section class="glass-card profile-card">
             <div class="profile-banner"></div>
             <div class="profile-body">
@@ -101,7 +101,7 @@ export async function creatorPage(c) {
               ${viewInApp('profile')}
             </div>
           </section>
-          ${adSlot(c.env.WEB_AD_BOTTOM)}
+          ${adRegion(c, c.env.WEB_AD_BOTTOM, 'bottom')}
           ${openInApp(c, 'Creator Profile', false)}
         </div>
       </main>
@@ -282,6 +282,74 @@ function formatSize(bytes) {
 
 const adSlot = (html) => (html ? `<div class="ad">${html}</div>` : '');
 
+// Local preview: `?ad=dummy` on any share page (or AD_DUMMY=true in the env) draws placeholder
+// boxes where the real ads go, so you can check placement without Ad Manager ids. Never shows in
+// production unless you deliberately turn it on — real GAM units always win over the dummy.
+const dummyOn = (c) => c.req.query('ad') === 'dummy' || String(c.env.AD_DUMMY || '').toLowerCase() === 'true';
+const dummyBox = (label) =>
+  `<div style="border:2px dashed #f093fb;border-radius:12px;padding:28px 16px;text-align:center;background:rgba(240,147,251,.08);color:#f093fb;font:700 14px/1.4 system-ui,sans-serif;letter-spacing:.5px">AD SLOT · ${label}</div>`;
+const dummyInterstitial = () => `
+<div id="ad-dummy-interstitial" style="position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.86)">
+  <div style="background:#fff;color:#111;padding:34px 44px;border-radius:16px;text-align:center;font:700 18px system-ui,sans-serif">
+    INTERSTITIAL AD
+    <div style="margin-top:18px"><button type="button" onclick="document.getElementById('ad-dummy-interstitial').style.display='none'" style="padding:10px 22px;border:0;border-radius:8px;background:#1F7A1F;color:#fff;font-weight:700;cursor:pointer">Close preview</button></div>
+  </div>
+</div>
+<script>setTimeout(function () { var e = document.getElementById('ad-dummy-interstitial'); if (e) e.style.display = 'flex'; }, 800);</script>`;
+
+/**
+ * Ad regions, filled one of two ways (in this order):
+ *  1. WEB_AD_TOP / WEB_AD_BOTTOM — raw HTML you paste in wrangler.toml (any network, quick test).
+ *  2. Google Ad Manager (GPT) — the same top + bottom responsive units DiskWala's file page uses.
+ *     Needs YOUR OWN Ad Manager setup: the ad-unit paths (which start with your /NETWORK_CODE/) in
+ *     GAM_TOP_AD_UNIT / GAM_BOTTOM_AD_UNIT. Nothing here is copied from another publisher.
+ * Each GPT slot needs a unique div id; the head (gptHead) defines the slots, the body renders them.
+ */
+const GAM_SLOTS = {
+  top: { id: 'gam-top', unitVar: 'GAM_TOP_AD_UNIT' },
+  bottom: { id: 'gam-bottom', unitVar: 'GAM_BOTTOM_AD_UNIT' },
+};
+const gamUnit = (env, region) => String(env[GAM_SLOTS[region].unitVar] || '').trim();
+
+/** Sizes for defineSlot: 'fluid' (Ad Manager responsive) unless GAM_AD_SIZES lists fixed "320x50,300x250". */
+function gamSizes(env) {
+  const raw = String(env.GAM_AD_SIZES || '').trim();
+  const arr = raw
+    .split(',')
+    .map((s) => s.trim().match(/^(\d+)\s*[xX]\s*(\d+)$/))
+    .filter(Boolean)
+    .map((m) => `[${m[1]}, ${m[2]}]`);
+  return arr.length ? `[${arr.join(', ')}]` : "'fluid'";
+}
+
+// One-time head include: the gpt.js loader + a defineSlot for every configured region, plus an
+// optional full-screen interstitial (an out-of-page slot, so it needs no body div — Ad Manager
+// applies its own frequency cap). displayOutOfPage must run after enableServices.
+function gptHead(c) {
+  const sizes = gamSizes(c.env);
+  const defs = Object.values(GAM_SLOTS)
+    .filter((s) => String(c.env[s.unitVar] || '').trim())
+    .map((s) => `googletag.defineSlot(${JSON.stringify(c.env[s.unitVar])}, ${sizes}, ${JSON.stringify(s.id)}).addService(googletag.pubads());`);
+  const inter = String(c.env.GAM_INTERSTITIAL_AD_UNIT || '').trim();
+  if (!defs.length && !inter) return '';
+  const interDef = inter
+    ? `var __inter = googletag.defineOutOfPageSlot(${JSON.stringify(inter)}, googletag.enums.OutOfPageFormat.INTERSTITIAL); if (__inter) { __inter.addService(googletag.pubads()); } `
+    : '';
+  const interShow = inter ? ' googletag.pubads().displayOutOfPage(function (r) { r.isDisplayed(); });' : '';
+  return `<script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"></script>
+<script>window.googletag = window.googletag || { cmd: [] }; googletag.cmd.push(function () {${defs.join(' ')} ${interDef}googletag.pubads().enableSingleRequest(); googletag.enableServices();${interShow} });</script>`;
+}
+
+function adRegion(c, rawHtml, region) {
+  if (rawHtml) return adSlot(rawHtml);
+  if (gamUnit(c.env, region)) {
+    const { id } = GAM_SLOTS[region];
+    return adSlot(`<div id="${id}" class="gam-slot"></div><script>googletag.cmd.push(function () { googletag.display(${JSON.stringify(id)}); });</script>`);
+  }
+  if (dummyOn(c)) return adSlot(dummyBox(region));
+  return '';
+}
+
 function logo(c) {
   return `<a href="/" class="logo"><span class="logo-mark">${icon('play')}</span>${escapeHtml(c.env.APP_NAME)}</a>`;
 }
@@ -363,6 +431,7 @@ function layout(c, { title, description, body, links, noFooter = false, toast = 
   })();
 </script>
 ${c.env.WEB_AD_HEAD || ''}
+${gptHead(c)}
 </head>
 <body>
 <header class="appbar">
@@ -375,6 +444,7 @@ ${c.env.WEB_AD_HEAD || ''}
 </header>
 ${body}
 ${noFooter ? '' : footer(c)}
+${dummyOn(c) ? dummyInterstitial() : ''}
 <div class="toast" role="status" aria-live="polite" data-toast hidden>${icon('info')}<span></span></div>
 <script>${pageScript(c, links, toast)}</script>
 </body>

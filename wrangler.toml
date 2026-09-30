@@ -67,3 +67,19 @@ TUTORIAL_YOUTUBE_ID = ""
 WEB_AD_HEAD = ""
 WEB_AD_TOP = ""
 WEB_AD_BOTTOM = ""
+
+# ---- Google Ad Manager (GPT) — same top + bottom responsive units DiskWala's file page uses ----
+# From your Ad Manager (admanager3.google.com): Inventory → Ad units. Each ad-unit PATH starts with
+# your network code, e.g. "/123456789/vidshare/top-banner". Leave both empty to disable GAM.
+# WEB_AD_TOP/BOTTOM (raw HTML above) win over these if both are set.
+#   GAM_TOP_AD_UNIT    = "/123456789/vidshare/top-banner"
+#   GAM_BOTTOM_AD_UNIT = "/123456789/vidshare/bottom-banner"
+#   GAM_AD_SIZES       = ""              # empty = 'fluid' (responsive); else e.g. "320x50,300x250"
+#   GAM_INTERSTITIAL_AD_UNIT = "/123456789/vidshare/interstitial"   # full-screen, Ad Manager frequency-caps it
+GAM_TOP_AD_UNIT = ""
+GAM_BOTTOM_AD_UNIT = ""
+GAM_AD_SIZES = ""
+GAM_INTERSTITIAL_AD_UNIT = ""
+# Local preview only: true draws placeholder boxes + a dummy interstitial where ads go (or add
+# ?ad=dummy to any share page URL). Leave false in production.
+AD_DUMMY = "false"
