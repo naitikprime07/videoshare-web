@@ -9,19 +9,19 @@
   --text: #111A16;
   --text-2: #3D4A44;
   --muted: #6A7973;
-  --primary: #1F7A1F;
-  --primary-hover: #196619;
-  --primary-soft: #EAF6EA;
+  --primary: #F44647;
+  --primary-hover: #DB2F30;
+  --primary-soft: #FCE7E8;
   --primary-text: #FFFFFF;
-  --chart: #1F7A1F;
+  --chart: #F44647;
   --grid: #EDF1EF;
   --up: #15803D;
   --down: #B91C1C;
   --danger: #B91C1C;
   --danger-soft: #FEF2F2;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 20, .05);
-  --shadow: 0 1px 2px rgba(16, 24, 20, .04), 0 4px 16px rgba(16, 24, 20, .05);
-  --shadow-lg: 0 24px 64px rgba(16, 24, 20, .22);
+  --shadow-sm: 0 1px 2px rgba(24, 16, 16, .05);
+  --shadow: 0 1px 2px rgba(24, 16, 16, .04), 0 4px 16px rgba(24, 16, 16, .05);
+  --shadow-lg: 0 24px 64px rgba(24, 16, 16, .22);
   --radius: 16px;
   color-scheme: light;
 }
@@ -34,13 +34,13 @@
   --border: #1E2824;
   --border-strong: #2A3631;
   --text: #EEF3F1;
-  --text-2: #C3CEC9;
+  --text-2: #C9C3C3;
   --muted: #8A9892;
-  --primary: #3FA53F;
-  --primary-hover: #4BB44B;
-  --primary-soft: rgba(63, 165, 63, .14);
-  --primary-text: #041004;
-  --chart: #43A843;
+  --primary: #F44647;
+  --primary-hover: #F47177;
+  --primary-soft: rgba(244, 70, 71, .14);
+  --primary-text: #1A0505;
+  --chart: #F44647;
   --grid: #19211E;
   --up: #4ADE80;
   --down: #F87171;
@@ -254,7 +254,7 @@ svg {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(to bottom, #51BC51, #136C13);
+  background: linear-gradient(to bottom, #F47177, #DB2F30);
   color: #fff;
   box-shadow: inset 0 1px rgba(255, 255, 255, .25);
 }
@@ -1030,7 +1030,7 @@ select {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(8, 12, 10, .5);
+  background: rgba(12, 8, 8, .5);
   backdrop-filter: blur(3px);
 }
 
@@ -1243,7 +1243,7 @@ select {
   position: fixed;
   inset: 0;
   z-index: 45;
-  background: rgba(8, 12, 10, .45);
+  background: rgba(12, 8, 8, .45);
 }
 
 .drawer {
@@ -1673,9 +1673,9 @@ select {
     margin-top: -22px;
     border-radius: 16px;
     border: 0;
-    background: linear-gradient(to bottom, #51BC51, #136C13);
+    background: linear-gradient(to bottom, #F47177, #DB2F30);
     color: #fff;
-    box-shadow: 0 8px 20px rgba(31, 122, 31, .35);
+    box-shadow: 0 8px 20px rgba(244, 70, 71, .35);
   }
 
   .fab svg {

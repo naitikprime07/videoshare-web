@@ -1,16 +1,16 @@
 /* Public pages (/app/:id, /creator/:id, /privacy, /, 404). Same layout and styling as DiskWala's file/creator pages:
    green theme, Public Sans, pill header, glass cards, gradient chips, light/dark toggle. */
 :root {
-  --g50: #F6FEF6;
-  --g100: #E3FBE3;
-  --g200: #C7F7C7;
-  --g300: #A1E8A1;
-  --g400: #51BC51;
-  --g500: #1F7A1F;
-  --g600: #136C13;
-  --g700: #0A470A;
-  --g800: #042F04;
-  --g900: #021D02;
+  --g50: #FEF4F4;
+  --g100: #FCE4E5;
+  --g200: #F9C6C9;
+  --g300: #F69CA1;
+  --g400: #F47177;
+  --g500: #F44647;
+  --g600: #DB2F30;
+  --g700: #A82426;
+  --g800: #6E1819;
+  --g900: #430F10;
   --primary: var(--g500);
   --primary-light: var(--g200);
   --bg: #ffffff;
@@ -22,20 +22,20 @@
   --glass: rgba(255, 255, 255, .7);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, .06);
   --plain: #ffffff;
-  --promo: rgba(31, 122, 31, .02);
-  --icon-circle: rgba(31, 122, 31, .08);
+  --promo: rgba(244, 70, 71, .02);
+  --icon-circle: rgba(244, 70, 71, .08);
   --chip-bg: linear-gradient(to bottom right, var(--g50), var(--g100));
-  --chip-border: rgba(31, 122, 31, .3);
+  --chip-border: rgba(244, 70, 71, .3);
   --chip-text: var(--g500);
-  --outlined-bg: rgba(161, 232, 161, .1);
-  --outlined-hover: rgba(161, 232, 161, .3);
+  --outlined-bg: rgba(246, 156, 161, .1);
+  --outlined-hover: rgba(246, 156, 161, .3);
   --outlined-border: var(--g300);
   --outlined-text: var(--g500);
   --header-bg: rgba(255, 255, 255, .4);
   --header-shadow: 0 0 1px rgba(85, 166, 246, .1), 1px 1.5px 2px -1px rgba(85, 166, 246, .15), 4px 4px 12px -2.5px rgba(85, 166, 246, .15);
   --accordion-bg: #ffffff;
   --accordion-hover: #EAF0F5;
-  --footer-bg: rgba(31, 122, 31, .02);
+  --footer-bg: rgba(244, 70, 71, .02);
   --error: #f44336;
   color-scheme: light;
 }
@@ -54,12 +54,12 @@
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, .3);
   --plain: rgba(255, 255, 255, .02);
   --promo: rgba(255, 255, 255, .02);
-  --icon-circle: rgba(81, 188, 81, .08);
+  --icon-circle: rgba(244, 113, 119, .08);
   --chip-bg: linear-gradient(to bottom right, var(--g700), var(--g900));
-  --chip-border: rgba(31, 122, 31, .5);
+  --chip-border: rgba(244, 70, 71, .5);
   --chip-text: var(--g200);
-  --outlined-bg: rgba(19, 108, 19, .1);
-  --outlined-hover: rgba(19, 108, 19, .3);
+  --outlined-bg: rgba(219, 47, 48, .1);
+  --outlined-hover: rgba(219, 47, 48, .3);
   --outlined-border: var(--g700);
   --outlined-text: var(--g300);
   --header-bg: rgba(0, 0, 0, .4);
@@ -499,14 +499,14 @@ p {
   color: var(--g50);
   background: var(--g500);
   background-image: linear-gradient(to bottom, var(--g400), var(--g600));
-  box-shadow: inset 0 1px rgba(161, 232, 161, .4);
+  box-shadow: inset 0 1px rgba(246, 156, 161, .4);
   outline: 1px solid var(--g700);
 }
 
 .btn.contained:hover {
   background: var(--g400);
   background-image: none;
-  box-shadow: 0 0 0 1px rgba(161, 232, 161, .5);
+  box-shadow: 0 0 0 1px rgba(246, 156, 161, .5);
 }
 
 .btn.outlined {
@@ -552,7 +552,7 @@ p {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(31, 122, 31, .5);
+  outline: 3px solid rgba(244, 70, 71, .5);
   outline-offset: 2px;
 }
 
@@ -1022,7 +1022,7 @@ p {
 .step-grid .glass-card:hover,
 .feature-grid .glass-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 14px 40px rgba(31, 122, 31, .12);
+  box-shadow: 0 14px 40px rgba(244, 70, 71, .12);
 }
 
 .step-num {
@@ -1036,7 +1036,7 @@ p {
   color: #fff;
   font-size: 15px;
   font-weight: 800;
-  box-shadow: inset 0 1px rgba(161, 232, 161, .4);
+  box-shadow: inset 0 1px rgba(246, 156, 161, .4);
 }
 
 .step .type-circle {
@@ -1159,7 +1159,7 @@ details.acc {
 
 details.acc[open] {
   border-color: var(--primary);
-  box-shadow: 0 2px 12px rgba(31, 122, 31, .08);
+  box-shadow: 0 2px 12px rgba(244, 70, 71, .08);
 }
 
 details.acc summary {

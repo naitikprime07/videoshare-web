@@ -345,7 +345,7 @@ function layout(c, { title, description, body, links, noFooter = false, toast = 
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#1F7A1F">
+<meta name="theme-color" content="#F44647">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${escapeHtml(c.env.APP_NAME)}">
 <meta property="og:title" content="${escapeHtml(title)}">
