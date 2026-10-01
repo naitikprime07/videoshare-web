@@ -430,6 +430,179 @@ p {
   margin: 24px 0;
   text-align: center;
   min-height: 0;
+  width: 100%;
+}
+
+/* GPT inline slot. Give it real width so responsive/'fluid' (adaptive-banner) slots can measure a
+   width and pick a height — inside a centered flex column an unsized child shrink-wraps to 0px. */
+.gam-slot {
+  width: 100%;
+  max-width: 100%;
+  min-height: 50px;
+  margin: 0 auto;
+}
+
+/* Pixoria-style floating side ad panels. A fixed 300x250 GPT slot in a corner slide-in panel with a
+   round toggle nub. Retracted it sits mostly off-screen leaving only the nub at the edge (so it can be
+   reopened); .active slides the full box into view. Mirrored left/right, shown on top of content. */
+.floating-ad {
+  position: fixed;
+  top: 80px;
+  width: 320px;
+  height: 260px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  transition: right 0.5s ease, left 0.5s ease;
+}
+/* Right panel sits at the TOP (same top: 80px as the base .floating-ad), sliding in from the edge. */
+.floating-ad-right { right: -320px; }
+.floating-ad-left  { left: -320px; }
+.floating-ad-right.active { right: 10px; }
+.floating-ad-left.active  { left: 10px; }
+
+.floating-ad-content {
+  width: 300px;
+  height: 250px;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+}
+.floating-ad-right .floating-ad-content { border-radius: 10px 0 0 10px; }
+.floating-ad-left  .floating-ad-content { border-radius: 0 10px 10px 0; }
+.floating-ad-content .gam-slot { width: 300px; min-height: 250px; }
+
+/* Left sticky VIDEO ad box (custom UI + IMA). Dark box with a countdown, white X close, and a
+   "Google Ad Manager / Preroll / N Seconds" placeholder that the IMA player swaps in for the video.
+   Fixed on the left, lifted above the bottom edge; sits over all content. Hidden entirely < 480px. */
+.adbox {
+  position: fixed;
+  left: 20px;
+  bottom: 90px;
+  width: 300px;
+  background: #0b0b0b;
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  z-index: 99999;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.adbox-top,
+.adbox-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #141414;
+}
+.adbox-label {
+  flex: 1;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #9aa0a6;
+}
+.adbox-count,
+.adbox-count2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+.adbox-count2 { width: 20px; height: 20px; font-size: 10px; color: #cfcfcf; }
+.adbox-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  background: #fff;
+  color: #000;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.adbox-mid { position: relative; height: 200px; background: #000; }
+.adbox-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.adbox-ph .gam { color: #9aa0a6; font-size: 13px; }
+.adbox-ph .pre { color: #4caf50; font-size: 15px; font-weight: 600; }
+.adbox-ph .secs { color: #fff; font-size: 13px; }
+.adbox-ima { position: absolute; inset: 0; display: none; }
+.adbox-ima video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.adbox-bottom { justify-content: flex-end; }
+.adbox-help {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #6b6b6b;
+  color: #cfcfcf;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+@media (max-width: 480px) {
+  .adbox { display: none; }
+}
+
+.floating-ad-toggle {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+}
+.floating-ad-right .floating-ad-toggle { left: -30px; }
+.floating-ad-left  .floating-ad-toggle { right: -30px; }
+.floating-ad:not(.active) .floating-ad-toggle::before { content: "\203A"; }
+.floating-ad.active .floating-ad-toggle::before { content: "\2715"; }
+.floating-ad-left:not(.active) .floating-ad-toggle::before { transform: scaleX(-1); }
+
+/* Mobile/tablet (<1024px): the overlay-style ads (floating side panels + their nubs + the left sticky
+   video box) cover the screen or overlap content at these widths and break the layout — hide them all.
+   The inline top/bottom banners stay in the page flow. */
+@media (max-width: 1023px) {
+  .floating-ad,
+  .floating-ad-toggle,
+  .adbox {
+    display: none !important;
+  }
+
+  .ad {
+    margin: 16px 0;
+    overflow-x: hidden;
+  }
 }
 
 /* ---------- Chips (MUI small, themed) ---------- */
