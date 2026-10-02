@@ -711,6 +711,47 @@ function videoRail(c) {
 
 
   /*
+   * Best-effort play of the page's MAIN content video (any <video> that isn't ours).
+   * Called from teardown() on error / no-fill paths so the user's own video starts
+   * immediately after the preroll request fails, per user policy (no test fallback).
+   */
+  function playMainVideo() {
+
+    var vids =
+      document.querySelectorAll('video');
+
+
+    for (var i = 0; i < vids.length; i++) {
+
+      var v = vids[i];
+
+      if (!v) continue;
+      if (v.id === 'adbox-video') continue;
+      if (v.closest && v.closest('#adbox')) continue;
+
+      try {
+        var p = v.play();
+        if (p && p.catch) {
+          p.catch(function (err) {
+            console.log(
+              '[GAM VIDEO] main video play err:',
+              err
+            );
+          });
+        }
+      } catch (err) {
+        console.warn(
+          '[GAM VIDEO] main video play threw:',
+          err
+        );
+      }
+
+    }
+
+  }
+
+
+  /*
    * Start one ad cycle.
    */
   function runCycle() {
@@ -923,32 +964,36 @@ function videoRail(c) {
 
 
       /*
-       * Reload next ad.
+       * USER POLICY (Oct 2026): one GAM request per page load.
+       * - NO 30s auto-cycle retry, even after AD_ERROR / 303 no-fill.
+       * - NO test/sample fallback anywhere in the pipeline.
+       * - On error / no-fill / 2nd-ad-blocked paths, hand playback straight back
+       *   to the page's main content video (playMainVideo() finds the non-adbox <video>).
        */
-      if (REFRESH_SEC > 0) {
-
-        console.log(
-          '[GAM VIDEO] cycle ended (' +
-          why +
-          ') - next cycle in ' +
-          REFRESH_SEC +
-          's'
+      var errMode =
+        /AD_ERROR|missing|failed|blocked|no fill/i.test(
+          why || ''
         );
 
 
-        nextTimer =
-          setTimeout(
-            runCycle,
-            REFRESH_SEC * 1000
+      console.log(
+        '[GAM VIDEO] cycle ended (' +
+        why +
+        ') - no auto reload' +
+        (errMode ? ' + starting main video' : '')
+      );
+
+
+      if (errMode) {
+
+        try {
+          playMainVideo();
+        } catch (err) {
+          console.warn(
+            '[GAM VIDEO] playMainVideo failed:',
+            err
           );
-
-      } else {
-
-        console.log(
-          '[GAM VIDEO] cycle ended (' +
-          why +
-          ') - auto reload off'
-        );
+        }
 
       }
 
