@@ -1694,23 +1694,33 @@ function interstitialManager(c) {
   var UNIT = ${JSON.stringify(unit)};
   var DELAY_SEC = ${isNaN(delay) ? 20 : delay};
 
-  var GPT_WAIT_MS = 15000;
   var SHOW_CAP_MS = 60000;
+  var GPT_WAIT_MS = 15000;
 
-  function log(message) {
-    console.log('[GAM INTERSTITIAL] ' + message);
+  function log(m) {
+    console.log('[GAM INTERSTITIAL] ' + m);
   }
 
   /*
-   * IMPORTANT:
-   * Only one manager is allowed on this page.
+   * Prevent duplicate manager initialization.
+   * Keep the original public guard.
    */
-  if (window.__xixGamInterstitialManager) {
-    log('already initialized - skipping duplicate');
+  if (window.gamInterstitial) {
+    log('manager already initialised - skipping duplicate');
     return;
   }
 
-  window.__xixGamInterstitialManager = true;
+  /*
+   * Internal one-per-page guard.
+   */
+  if (window.__xixInterstitialCreated) {
+    log('interstitial already created on this page - skipping');
+    return;
+  }
+
+  window.__xixInterstitialCreated = true;
+
+  log('initializing');
 
   var state = 'IDLE';
   var slot = null;
@@ -1718,101 +1728,116 @@ function interstitialManager(c) {
   var pollTimer = null;
   var showTimer = null;
 
-  function cleanupListener() {
-    if (renderHandler && window.googletag && window.googletag.pubads) {
-      try {
-        window.googletag
-          .pubads()
-          .removeEventListener('slotRenderEnded', renderHandler);
-      } catch (e) {}
-    }
+  function cleanup() {
 
-    renderHandler = null;
-  }
-
-  function cleanupPoll() {
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;
     }
-  }
 
-  function cleanupShowTimer() {
     if (showTimer) {
       clearTimeout(showTimer);
       showTimer = null;
     }
+
+    if (renderHandler) {
+      try {
+        window.googletag
+          .pubads()
+          .removeEventListener(
+            'slotRenderEnded',
+            renderHandler
+          );
+      } catch (err) {}
+
+      renderHandler = null;
+    }
   }
 
-  function release(reason, type) {
-    cleanupPoll();
-    cleanupShowTimer();
-    cleanupListener();
+  function release(reason, kind) {
 
-    if (slot && window.googletag && window.googletag.destroySlots) {
+    cleanup();
+
+    if (slot) {
       try {
         window.googletag.destroySlots([slot]);
-      } catch (e) {}
+      } catch (err) {}
+
+      slot = null;
     }
 
-    slot = null;
     state = 'IDLE';
 
-    log(type + ' - ' + reason);
+    log(
+      kind +
+      ' - ' +
+      reason +
+      ' - slot released, page flow unaffected'
+    );
   }
 
-  function getContainer() {
+  function container() {
+
     if (!slot) return null;
 
     try {
-      var id = slot.getSlotElementId();
-      return document.getElementById(id);
-    } catch (e) {
+      return document.getElementById(
+        slot.getSlotElementId()
+      );
+    } catch (err) {
       return null;
     }
   }
 
-  function isVisible(node) {
+  function onScreen(node) {
+
     if (!node) return false;
 
     try {
-      var style = window.getComputedStyle(node);
+
+      var cs = window.getComputedStyle(node);
 
       if (
-        style.display === 'none' ||
-        style.visibility === 'hidden' ||
-        Number(style.opacity) === 0
+        cs.display === 'none' ||
+        cs.visibility === 'hidden' ||
+        +cs.opacity === 0
       ) {
         return false;
       }
 
-      var rect = node.getBoundingClientRect();
+      var r = node.getBoundingClientRect();
 
-      return rect.width > 80 && rect.height > 80;
-    } catch (e) {
+      return (
+        r.width > 80 &&
+        r.height > 80
+      );
+
+    } catch (err) {
       return false;
     }
   }
 
-  function monitorInterstitial() {
-    cleanupPoll();
+  function track() {
 
-    var startedAt = Date.now();
-    var wasVisible = false;
+    if (pollTimer) {
+      clearInterval(pollTimer);
+    }
+
+    var revealed = false;
+    var t0 = Date.now();
 
     pollTimer = setInterval(function () {
 
-      if (!slot) {
-        cleanupPoll();
-        return;
-      }
+      var node = container();
 
-      var node = getContainer();
+      /*
+       * Interstitial is visible.
+       */
+      if (onScreen(node)) {
 
-      if (isVisible(node)) {
+        if (!revealed) {
 
-        if (!wasVisible) {
-          wasVisible = true;
+          revealed = true;
           state = 'SHOWING';
 
           log('interstitial shown');
@@ -1822,9 +1847,10 @@ function interstitialManager(c) {
       }
 
       /*
-       * GPT removed/closed the interstitial.
+       * It was visible and is now gone.
        */
-      if (wasVisible) {
+      if (revealed) {
+
         log('interstitial closed');
 
         release(
@@ -1838,7 +1864,10 @@ function interstitialManager(c) {
       /*
        * Filled but never became visible.
        */
-      if (Date.now() - startedAt > SHOW_CAP_MS) {
+      if (
+        Date.now() - t0 >
+        SHOW_CAP_MS
+      ) {
 
         release(
           'filled but not revealed within ' +
@@ -1851,24 +1880,17 @@ function interstitialManager(c) {
     }, 1000);
   }
 
-  function createSlot() {
+  function claimSlot() {
 
-    if (state !== 'IDLE') {
-      log('createSlot skipped - state=' + state);
-      return;
-    }
+    state = 'LOADING';
 
-    state = 'CREATING';
+    log('claiming web interstitial slot');
 
-    log('waiting for GPT');
+    var ran = false;
 
-    var finished = false;
+    var guard = setTimeout(function () {
 
-    var timeout = setTimeout(function () {
-
-      if (finished) return;
-
-      finished = true;
+      if (ran) return;
 
       release(
         'GPT did not become ready within ' +
@@ -1879,37 +1901,35 @@ function interstitialManager(c) {
 
     }, GPT_WAIT_MS);
 
-    window.googletag = window.googletag || {
-      cmd: []
-    };
+    window.googletag =
+      window.googletag || {
+        cmd: []
+      };
 
     window.googletag.cmd.push(function () {
 
-      if (finished) return;
-
-      finished = true;
-      clearTimeout(timeout);
+      ran = true;
+      clearTimeout(guard);
 
       log('GPT ready');
 
-      /*
-       * Make absolutely sure this manager has not
-       * already created a slot.
-       */
       if (slot) {
-        log('slot already exists - skipping creation');
+        log('slot already exists - skipping duplicate');
         state = 'READY';
         return;
       }
 
-      var formats =
+      var F =
         window.googletag.enums &&
         window.googletag.enums.OutOfPageFormat;
 
-      if (!formats || !formats.INTERSTITIAL) {
+      if (
+        !F ||
+        !F.INTERSTITIAL
+      ) {
 
         release(
-          'OutOfPageFormat.INTERSTITIAL unavailable',
+          'OutOfPageFormat.INTERSTITIAL unavailable in this environment',
           'fallback'
         );
 
@@ -1917,15 +1937,15 @@ function interstitialManager(c) {
       }
 
       /*
-       * Create ONE web interstitial slot.
+       * Create exactly ONE interstitial slot.
        */
-      var newSlot =
+      slot =
         window.googletag.defineOutOfPageSlot(
           UNIT,
-          formats.INTERSTITIAL
+          F.INTERSTITIAL
         );
 
-      if (!newSlot) {
+      if (!slot) {
 
         release(
           'defineOutOfPageSlot returned null',
@@ -1935,12 +1955,8 @@ function interstitialManager(c) {
         return;
       }
 
-      slot = newSlot;
-
       /*
-       * Do NOT use continueReading or backward.
-       * These can introduce Google-managed behavior
-       * that we don't want here.
+       * Keep your original trigger configuration.
        */
       slot.setConfig({
         interstitial: {
@@ -1960,10 +1976,9 @@ function interstitialManager(c) {
       state = 'READY';
 
       log(
-        'slot created successfully - ' +
-        'show scheduled after ' +
+        'slot claimed - will display after ' +
         DELAY_SEC +
-        's'
+        's timer'
       );
 
     });
@@ -1971,38 +1986,67 @@ function interstitialManager(c) {
 
   function show() {
 
-    if (state !== 'READY') {
+    if (state === 'IDLE') {
 
       log(
-        'show skipped - slot not ready. state=' +
-        state
+        'show skipped - manager already released'
+      );
+
+      return;
+    }
+
+    /*
+     * GPT may still be processing the command.
+     */
+    if (state !== 'READY') {
+
+      setTimeout(
+        show,
+        1000
       );
 
       return;
     }
 
     if (!slot) {
-      log('show skipped - no slot');
+
+      log(
+        'show skipped - slot missing'
+      );
+
       return;
     }
 
-    state = 'REQUESTING';
+    state = 'LOADING';
 
     log('displaying web interstitial');
 
-    cleanupListener();
+    renderHandler = function (e) {
 
-    renderHandler = function (event) {
-
-      if (!event || event.slot !== slot) {
+      if (!e || e.slot !== slot) {
         return;
       }
 
-      cleanupListener();
+      try {
+
+        window.googletag
+          .pubads()
+          .removeEventListener(
+            'slotRenderEnded',
+            renderHandler
+          );
+
+      } catch (err) {}
+
+      renderHandler = null;
 
       log('render event');
 
-      if (event.isEmpty) {
+      if (e.isEmpty) {
+
+        log(
+          'render event indicates NO FILL'
+        );
 
         release(
           'no fill',
@@ -2017,27 +2061,30 @@ function interstitialManager(c) {
       );
     };
 
+    window.googletag
+      .pubads()
+      .addEventListener(
+        'slotRenderEnded',
+        renderHandler
+      );
+
     try {
-      window.googletag
-        .pubads()
-        .addEventListener(
-          'slotRenderEnded',
-          renderHandler
-        );
 
       window.googletag.display(slot);
 
-      log('googletag.display() called');
+      log(
+        'googletag.display() called'
+      );
 
-      monitorInterstitial();
+      track();
 
-    } catch (error) {
+    } catch (err) {
 
       log(
         'display error: ' +
-        (error && error.message
-          ? error.message
-          : error)
+        (err && err.message
+          ? err.message
+          : err)
       );
 
       release(
@@ -2048,28 +2095,22 @@ function interstitialManager(c) {
   }
 
   /*
-   * Public debug API.
+   * Debug API.
    */
   window.gamInterstitial = {
-
-    show: function () {
-      show();
-    },
-
+    show: show,
     state: function () {
       return state;
     }
-
   };
 
   /*
-   * Create/claim the slot once.
+   * Create slot immediately.
    */
-  createSlot();
+  claimSlot();
 
   /*
-   * Wait the configured number of seconds
-   * before calling display().
+   * Show after configured delay.
    */
   showTimer = setTimeout(function () {
 
