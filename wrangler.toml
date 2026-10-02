@@ -80,12 +80,12 @@ GAM_TOP_AD_SIZES = "300x250"
 GAM_BOTTOM_AD_SIZES = "300x250"
 # LEFT sticky VIDEO ad box = a custom dark UI (Advertisement + countdown + X, Preroll placeholder)
 # powered by the IMA SDK. GAM_LEFT_VIDEO_AD_TAG is a full VAST URL (or a GAM video unit path); the code
-# replaces [TIMESTAMP] with Date.now() for a unique correlator. Currently pointed at Google's public
-# SAMPLE skippable-preroll VAST (/21775744923) which ALWAYS fills, so the box shows a real playable video
-# every ~30s cycle for verification (it is Google's demo creative = $0 revenue). To earn, book an in-stream
-# video line item in GAM and swap the iu= back to /23338698373/xixvideohub_display_left_video_01 — that
-# own unit currently returns an EMPTY VAST (no inventory booked), which is why it showed AD_ERROR. Empty value = no left video box.
-GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_preroll_skippable&sz=640x480&ciu_szs=300x250,728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=[TIMESTAMP]"
+# replaces [TIMESTAMP] with Date.now() for a unique correlator each ~30s cycle. Now pointed at YOUR own
+# GAM video unit (/23338698373/xixvideohub_display_left_video_01) as an in-stream VAST 4.0 preroll. NOTE:
+# this unit currently returns an EMPTY VAST (HTTP 200, <Ad>=0) because no line item is booked on it yet, so
+# the box will hide cleanly on no-fill instead of playing. Once you book + activate a Video line item with a
+# video creative targeting this unit, the SAME tag fills and the box plays your real ad automatically. Empty value = no left video box.
+GAM_LEFT_VIDEO_AD_TAG = "https://securepubads.g.doubleclick.net/gampad/ads?gdfp_req=1&env=vp&impl=s&output=xml_vast4&vpos=preroll&iu=/23338698373/xixvideohub_display_left_video_01&sz=400x300&ciu_szs=300x250,728x90&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
 # GPT WEB INTERSTITIAL (the real out-of-page format, NOT a custom overlay and NOT AdMob):
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
