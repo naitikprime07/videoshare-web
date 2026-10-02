@@ -74,8 +74,8 @@ WEB_AD_BOTTOM = ""
 # starts with your network code, e.g. "/123456789/vidshare/top-banner"). Leave a unit empty to disable it.
 # Sizes are per region (GAM_TOP_AD_SIZES / GAM_BOTTOM_AD_SIZES, falling back to GAM_AD_SIZES; a value
 # with no WxH like "fluid" = responsive). WEB_AD_TOP / WEB_AD_BOTTOM above override GAM for a region.
-GAM_TOP_AD_UNIT = "/21775744923/example/banner"
-GAM_BOTTOM_AD_UNIT = "/6355419/Travel/Europe/France/Paris"
+GAM_TOP_AD_UNIT = "/23338698373/xixvideohub_display_top_01"
+GAM_BOTTOM_AD_UNIT = "/23338698373/xixvideohub_display_bottom_01"
 GAM_TOP_AD_SIZES = "300x250"
 GAM_BOTTOM_AD_SIZES = "300x250"
 # LEFT sticky VIDEO ad box = a custom dark UI (Advertisement + countdown + X, Preroll placeholder)
@@ -83,7 +83,7 @@ GAM_BOTTOM_AD_SIZES = "300x250"
 # replaces [TIMESTAMP] with Date.now() for a unique correlator. NOTE: Google's free test network serves
 # NO video inventory, so this skippable test tag will show the UI then gracefully self-remove on AD_ERROR
 # until you point it at YOUR OWN GAM video ad unit. Empty = no left video box.
-GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_preroll_skippable&sz=640x480&ciu_szs=300x250,728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&correlator=[TIMESTAMP]"
+GAM_LEFT_VIDEO_AD_TAG = "/23338698373/xixvideohub_display_left_video_01"
 # GPT WEB INTERSTITIAL (the real out-of-page format, NOT a custom overlay and NOT AdMob):
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
@@ -95,11 +95,11 @@ GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/2177574
 # Every failure path (GPT slow/missing, slot null, no fill, never revealed) releases the slot and
 # returns to IDLE — nothing is overlaid, scrolling is never locked, the page is never blocked, and a
 # later attempt can request again with a fresh slot. Empty unit = disabled.
-GAM_INTERSTITIAL_AD_UNIT = "/21775744923/example/interstitial"
+GAM_INTERSTITIAL_AD_UNIT = "/23338698373/xixvideohub_display_interstitial_01"
 GAM_INTERSTITIAL_DELAY_SEC = "20"
 # RIGHT floating panel = a display banner (slide-in box + close nub). GAM_LEFT_AD_UNIT stays empty so
 # the left is video-only. Use a DISTINCT fillable 300x250 unit (not the same as top/bottom, or GPT dedupes).
-GAM_RIGHT_AD_UNIT = "/6355419/Travel/Europe"
+GAM_RIGHT_AD_UNIT = "/23338698373/xixvideohub_display_right_01"
 GAM_RIGHT_AD_SIZES = "300x250"
 GAM_AD_SIZES = "300x250"
 # AUTO-REFRESH cadency for every repeating ad: the GPT display slots (top/bottom banners + right
