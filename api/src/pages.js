@@ -1886,19 +1886,13 @@ function interstitialManager(c) {
   function forceReveal() {
     var node = container();
     if (!node) { log('forceReveal: container element not found'); return false; }
-    // background is TRANSPARENT on purpose: GPT's own creative paints a semi-transparent dark
-    // backdrop inside this container. If we forced an opaque (#fff) bg here, that dark layer would
-    // composite to flat grey and completely hide the site. Transparent lets the real page show
-    // through, dimmed — which is the desired interstitial look.
-    // display is intentionally NOT !important so GPT's own "Close" link (top-right of the creative)
-    // can hide the container again; our poll then detects the close and releases cleanly. We do NOT
-    // inject our own X button — the creative already provides one.
+    // Reveal ONLY. We deliberately set NO background (and no forced width/height/border/padding)
+    // so we add nothing behind the creative — whatever the ad renders from its own side is exactly
+    // what shows. We only flip it visible and lift it above the page. display is intentionally NOT
+    // !important so GPT's own "Close" link can hide it again and our poll releases cleanly.
     node.style.cssText =
-      'display:inline-block;position:fixed !important;top:0 !important;left:0 !important;'+
-      'right:0 !important;bottom:0 !important;width:100vw !important;height:100vh !important;'+
-      'min-width:100vw !important;min-height:100vh !important;z-index:2147483646 !important;'+
-      'background:transparent !important;border:0 !important;margin:0 !important;padding:0 !important;'+
-      'visibility:visible !important;opacity:1 !important;';
+      'display:inline-block;position:fixed !important;inset:0 !important;'+
+      'z-index:2147483646 !important;visibility:visible !important;opacity:1 !important;';
     try { document.body.style.overflow = 'hidden'; } catch (e) {}
     forcedOverlay = true;
     log('forced same-page reveal (GPT action gate did not fire)');
