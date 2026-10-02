@@ -1760,7 +1760,18 @@ function interstitialManager(c) {
         return release('defineOutOfPageSlot returned null (another interstitial already holds the per-page slot)', 'fallback');
       }
 
-      slot.setConfig({ interstitial: { triggers: { navBar: true, unhideWindow: true, inactivity: true, endOfArticle: true } } });
+      // Google's OFFICIAL web-interstitial trigger config goes on pubads() NOT on the slot
+// (developers.google.com/publisher-tag/samples/display-web-interstitial-ad). Slot-level
+// setConfig is ignored by GPT for interstitial triggers, which is why the previous
+// inactivity/endOfArticle triggers never fired and only unhideWindow (tab switch) revealed it.
+// With these pubads triggers GPT reveals the interstitial on the SAME page as soon as the
+// creative renders (adViewable) or on any small scroll / ~5s idle — no tab switch needed.
+      window.googletag.pubads().setConfig({ interstitial: { triggers: {
+        adViewable: true,
+        scroll: true,
+        inactivity: { threshold: 5000 },
+        unhideWindow: { threshold: 5000 }
+      } } });
       slot.addService(window.googletag.pubads());
 
       state = 'READY';
