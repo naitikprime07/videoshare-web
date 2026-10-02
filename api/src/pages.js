@@ -413,7 +413,14 @@ function gptHead(c) {
     return "";
   const loader =
     '<script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"></script>';
-  return `${loader}\n<script>window.googletag = window.googletag || { cmd: [] }; window.__gamDisplaySlots = window.__gamDisplaySlots || {}; googletag.cmd.push(function () {${defs.join(" ")} googletag.enableServices(); });</script>`;
+  // Chrome blocks GPT's web-interstitial attempt to add aria-hidden to <body> (WAI-ARIA forbids
+  // hiding the whole accessibility tree) and logs a console warning. This observer strips the
+  // attribute the moment GPT tries to set it, so the page stays accessible and the warning is
+  // silenced. Interstitial functionality is unaffected — GPT's own a11y intent was already being
+  // ignored by the browser anyway.
+  const a11yGuard =
+    '<script>(function(){function s(n){if(n&&n.tagName==="BODY"&&n.hasAttribute("aria-hidden")){n.removeAttribute("aria-hidden");}}if(document.body)s(document.body);try{var mo=new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var m=ms[i];if(m.type==="attributes"&&m.attributeName==="aria-hidden")s(m.target);}});mo.observe(document.documentElement,{attributes:true,attributeFilter:["aria-hidden"],subtree:true});}catch(e){}})();</script>';
+  return `${a11yGuard}\n${loader}\n<script>window.googletag = window.googletag || { cmd: [] }; window.__gamDisplaySlots = window.__gamDisplaySlots || {}; googletag.cmd.push(function () {${defs.join(" ")} googletag.enableServices(); });</script>`;
 }
 
 /** The slot div + its display() call for a GPT region (empty when that region's unit isn't set). */
