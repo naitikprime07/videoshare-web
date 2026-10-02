@@ -1847,13 +1847,23 @@ function interstitialManager(c) {
   log('initializing');
 
   var state = 'IDLE', slot = null, renderHandler = null, pollTimer = null;
+  var forcedCloseBtn = null; // only set when we manually reveal GPT's container (see track()).
 
   // Release everything and go back to IDLE. kind: 'fallback' (ad unavailable) or 'completed'.
   function release(reason, kind) {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (renderHandler) {
-      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
+      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); }
+      catch (err) {}
       renderHandler = null;
+    }
+    // Undo any forced-reveal overlay we injected (see track()). Safe no-op if we never forced.
+    if (forcedCloseBtn) {
+      try { document.body.removeChild(forcedCloseBtn); } catch (err) {}
+      forcedCloseBtn = null;
+      try { document.body.style.overflow = ''; } catch (err) {}
+      var n = container();
+      if (n) { try { n.removeAttribute('style'); } catch (err) {} }
     }
     if (slot) { try { window.googletag.destroySlots([slot]); } catch (err) {} slot = null; }
     state = 'IDLE';
@@ -1868,20 +1878,69 @@ function interstitialManager(c) {
     var r = node.getBoundingClientRect();
     return r.width > 80 && r.height > 80;
   }
-  // GPT owns the presentation; we only observe its container to know when the user closed it.
+
+  // Force GPT's already-rendered interstitial container to be visible as a full-screen
+  // overlay. GPT fills the slot but its own reveal gate only fires on tab-unhide / nav-bar /
+  // endOfArticle / first-visit-inactivity — none of which happen reliably for a normal visitor
+  // who just opened the page. This gives the SAME-page reveal the user asked for while still
+  // using GPT's real INTERSTITIAL format (Latest3 remains the refused one).
+  function forceReveal() {
+    var node = container();
+    if (!node) { log('forceReveal: container element not found'); return false; }
+    node.style.cssText =
+      'display:inline-block !important;position:fixed !important;top:0 !important;left:0 !important;'+
+      'right:0 !important;bottom:0 !important;width:100vw !important;height:100vh !important;'+
+      'min-width:100vw !important;min-height:100vh !important;z-index:2147483646 !important;'+
+      'background:#fff !important;border:0 !important;margin:0 !important;padding:0 !important;'+
+      'visibility:visible !important;opacity:1 !important;';
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+    // Visible close affordance so user can dismiss (GPT would normally provide its own X on
+    // the creative; we add a top-right button as a guaranteed exit).
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Close ad');
+    btn.textContent = '×';
+    btn.style.cssText =
+      'position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;'+
+      'background:rgba(0,0,0,.6);color:#fff;border:0;font-size:28px;line-height:1;'+
+      'z-index:2147483647;cursor:pointer;font-family:sans-serif;padding:0;';
+    btn.onclick = function () {
+      log('forced interstitial dismissed by user');
+      release('dismissed (forced reveal)', 'completed');
+    };
+    document.body.appendChild(btn);
+    forcedCloseBtn = btn;
+    log('forced same-page reveal (GPT action gate did not fire)');
+    return true;
+  }
+
+  // GPT owns the ad request + creative rendering. We watch its container; if the creative has
+  // filled but GPT's own reveal gate hasn't fired within FORCE_AFTER_MS, we manually present it.
   function track() {
     var revealed = false, t0 = Date.now();
+    var FORCE_AFTER_MS = 3000; // 3s grace for GPT to reveal on its own, then we take over.
+    var forced = false;
     pollTimer = setInterval(function () {
       var node = container();
       if (onScreen(node)) {
-        if (!revealed) { revealed = true; state = 'SHOWING'; log('interstitial shown'); }
+        if (!revealed) {
+          revealed = true;
+          state = 'SHOWING';
+          log('interstitial shown' + (forced ? ' (forced reveal)' : ''));
+        }
+        return;
+      }
+      // Not on-screen yet. If GPT hasn't revealed it within the grace window, force it once.
+      if (!forced && Date.now() - t0 > FORCE_AFTER_MS) {
+        forced = true;
+        forceReveal();
         return;
       }
       if (revealed) { log('interstitial closed'); release('closed by user', 'completed'); return; }
       if (Date.now() - t0 > SHOW_CAP_MS) {
         release('filled but not revealed within ' + (SHOW_CAP_MS / 1000) + 's (Google action/frequency gating)', 'fallback');
       }
-    }, 1000);
+    }, 500);
   }
 
   // Claim the SINGLE-PER-PAGE GPT INTERSTITIAL slot the instant GPT is ready (at load, NOT after the
