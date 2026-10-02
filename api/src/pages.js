@@ -1706,13 +1706,33 @@ function videoRail(c) {
 
 
   /*
-   * PREFLIGHT (user policy Oct 2026): do NOT mount the ad box even the first time
-   * unless GAM's VAST response actually contains an <Ad>. Fetch the same tag once;
-   * if a real ad exists, run the normal cycle. If it's an empty envelope or the
-   * fetch fails, hide everything for this page load — no box, no countdown, no
-   * AD_ERROR flash, no 30s retry — and start the main content video instead.
+   * PREFLIGHT + RETRY (user policy Oct 2026): do NOT mount the ad box unless GAM's
+   * VAST response actually contains an <Ad>. If a real ad exists, run the normal cycle
+   * ONCE. If it's an empty envelope (no demand booked yet) or the fetch fails, keep the
+   * page clean (no box, no countdown, no AD_ERROR flash) and RE-TRY the preflight every
+   * REFRESH_SEC seconds, so the instant GAM starts filling this unit the ad shows WITHOUT
+   * needing a page reload. Retries stop after an ad has been shown. This is a lightweight
+   * availability check, not a test/sample ad request.
    */
+  var videoAdShown = false;      // true once we successfully run a cycle
+  var preflightTimer = null;     // pending retry timer
+
+  function schedulePreflightRetry() {
+    if (videoAdShown || preflightTimer) return;
+    preflightTimer = setTimeout(function () {
+      preflightTimer = null;
+      preflightAd();
+    }, REFRESH_SEC * 1000);
+    console.log(
+      '[GAM VIDEO] preflight: no ad yet - will retry in ' + REFRESH_SEC + 's'
+    );
+  }
+
   function preflightAd() {
+
+    if (videoAdShown) {
+      return;
+    }
 
     var url =
       freshTag();
@@ -1753,17 +1773,16 @@ function videoRail(c) {
 
           if (hasAd) {
 
+            videoAdShown = true;
             runCycle();
 
           } else {
 
-            console.log(
-              '[GAM VIDEO] preflight: no ad — box will NOT be shown (first time too)'
-            );
-
             try {
               playMainVideo();
             } catch (e) {}
+
+            schedulePreflightRetry();
 
           }
 
@@ -1775,10 +1794,12 @@ function videoRail(c) {
             err
           );
 
-          // Safe default: if we cannot verify, do NOT show the box.
+          // Safe default: if we cannot verify, do NOT show the box - but keep retrying.
           try {
             playMainVideo();
           } catch (e) {}
+
+          schedulePreflightRetry();
 
         });
 
@@ -1792,6 +1813,8 @@ function videoRail(c) {
       try {
         playMainVideo();
       } catch (err) {}
+
+      schedulePreflightRetry();
 
     }
 
