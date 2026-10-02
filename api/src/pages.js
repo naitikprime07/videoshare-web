@@ -466,7 +466,7 @@ function videoRail(c) {
   secs = Math.max(30, secs);
 
   return `
-<div id="adbox" class="adbox" aria-label="Advertisement">
+<div id="adbox" class="adbox" aria-label="Advertisement" style="display:none;">
 
   <div class="adbox-top">
 
@@ -794,6 +794,13 @@ function videoRail(c) {
      * Add to page.
      */
     document.body.appendChild(box);
+
+
+    /*
+     * Reveal the box ONLY now (server template ships display:none so nothing
+     * flashes before preflight confirms GAM has a real <Ad> to serve).
+     */
+    box.style.display = '';
 
 
     /*
@@ -1692,9 +1699,99 @@ function videoRail(c) {
 
 
   /*
-   * Start first cycle.
+   * PREFLIGHT (user policy Oct 2026): do NOT mount the ad box even the first time
+   * unless GAM's VAST response actually contains an <Ad>. Fetch the same tag once;
+   * if a real ad exists, run the normal cycle. If it's an empty envelope or the
+   * fetch fails, hide everything for this page load — no box, no countdown, no
+   * AD_ERROR flash, no 30s retry — and start the main content video instead.
    */
-  runCycle();
+  function preflightAd() {
+
+    var url =
+      freshTag();
+
+
+    if (!url) {
+      return;
+    }
+
+
+    try {
+
+      fetch(
+        url,
+        {
+          method: 'GET',
+          credentials: 'omit',
+          mode: 'cors',
+          cache: 'no-store'
+        }
+      )
+        .then(function (r) {
+          return r.text();
+        })
+        .then(function (xml) {
+
+          var body = xml || '';
+          var hasAd = /<Ad[\s>]/i.test(body);
+
+
+          console.log(
+            '[GAM VIDEO] preflight hasAd=' +
+            hasAd +
+            ' bytes=' +
+            body.length
+          );
+
+
+          if (hasAd) {
+
+            runCycle();
+
+          } else {
+
+            console.log(
+              '[GAM VIDEO] preflight: no ad — box will NOT be shown (first time too)'
+            );
+
+            try {
+              playMainVideo();
+            } catch (e) {}
+
+          }
+
+        })
+        .catch(function (err) {
+
+          console.warn(
+            '[GAM VIDEO] preflight fetch failed:',
+            err
+          );
+
+          // Safe default: if we cannot verify, do NOT show the box.
+          try {
+            playMainVideo();
+          } catch (e) {}
+
+        });
+
+    } catch (e) {
+
+      console.warn(
+        '[GAM VIDEO] preflight threw:',
+        e
+      );
+
+      try {
+        playMainVideo();
+      } catch (err) {}
+
+    }
+
+  }
+
+
+  preflightAd();
 
 })();
 </script>
