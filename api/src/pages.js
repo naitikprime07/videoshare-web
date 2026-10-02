@@ -1831,7 +1831,9 @@ function interstitialManager(c) {
   (function () {
     var UNIT = ${JSON.stringify(unit)};
     var DELAY_SEC = ${isNaN(delay) ? 20 : delay};
-  var SHOW_CAP_MS = 60000;    // stop tracking a creative that filled but is never revealed
+  var SHOW_CAP_MS = 120000;   // give GPT's action/frequency reveal gate up to 2 minutes before we release
+                              // (60s was too tight and killed legit interstitials that would have shown on
+                              // the next scroll / idle / unhide event; 120s is a safer upper bound).
   var GPT_WAIT_MS = 15000;    // grace for gpt.js to execute our queued command
   function log(m) { console.log('[GAM INTERSTITIAL] ' + m); }
   if (window.gamInterstitial) { log('manager already initialised - skipping duplicate'); return; }
