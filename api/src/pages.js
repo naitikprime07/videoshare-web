@@ -1847,7 +1847,7 @@ function interstitialManager(c) {
   log('initializing');
 
   var state = 'IDLE', slot = null, renderHandler = null, pollTimer = null;
-  var forcedCloseBtn = null; // only set when we manually reveal GPT's container (see track()).
+  var forcedOverlay = false; // true once forceReveal() has taken over presentation (see track()).
 
   // Release everything and go back to IDLE. kind: 'fallback' (ad unavailable) or 'completed'.
   function release(reason, kind) {
@@ -1857,10 +1857,9 @@ function interstitialManager(c) {
       catch (err) {}
       renderHandler = null;
     }
-    // Undo any forced-reveal overlay we injected (see track()). Safe no-op if we never forced.
-    if (forcedCloseBtn) {
-      try { document.body.removeChild(forcedCloseBtn); } catch (err) {}
-      forcedCloseBtn = null;
+    // Undo any forced-reveal overlay we injected (see forceReveal()). Safe no-op if never forced.
+    if (forcedOverlay) {
+      forcedOverlay = false;
       try { document.body.style.overflow = ''; } catch (err) {}
       var n = container();
       if (n) { try { n.removeAttribute('style'); } catch (err) {} }
@@ -1887,29 +1886,21 @@ function interstitialManager(c) {
   function forceReveal() {
     var node = container();
     if (!node) { log('forceReveal: container element not found'); return false; }
+    // background is TRANSPARENT on purpose: GPT's own creative paints a semi-transparent dark
+    // backdrop inside this container. If we forced an opaque (#fff) bg here, that dark layer would
+    // composite to flat grey and completely hide the site. Transparent lets the real page show
+    // through, dimmed — which is the desired interstitial look.
+    // display is intentionally NOT !important so GPT's own "Close" link (top-right of the creative)
+    // can hide the container again; our poll then detects the close and releases cleanly. We do NOT
+    // inject our own X button — the creative already provides one.
     node.style.cssText =
-      'display:inline-block !important;position:fixed !important;top:0 !important;left:0 !important;'+
+      'display:inline-block;position:fixed !important;top:0 !important;left:0 !important;'+
       'right:0 !important;bottom:0 !important;width:100vw !important;height:100vh !important;'+
       'min-width:100vw !important;min-height:100vh !important;z-index:2147483646 !important;'+
-      'background:#fff !important;border:0 !important;margin:0 !important;padding:0 !important;'+
+      'background:transparent !important;border:0 !important;margin:0 !important;padding:0 !important;'+
       'visibility:visible !important;opacity:1 !important;';
     try { document.body.style.overflow = 'hidden'; } catch (e) {}
-    // Visible close affordance so user can dismiss (GPT would normally provide its own X on
-    // the creative; we add a top-right button as a guaranteed exit).
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Close ad');
-    btn.textContent = '×';
-    btn.style.cssText =
-      'position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;'+
-      'background:rgba(0,0,0,.6);color:#fff;border:0;font-size:28px;line-height:1;'+
-      'z-index:2147483647;cursor:pointer;font-family:sans-serif;padding:0;';
-    btn.onclick = function () {
-      log('forced interstitial dismissed by user');
-      release('dismissed (forced reveal)', 'completed');
-    };
-    document.body.appendChild(btn);
-    forcedCloseBtn = btn;
+    forcedOverlay = true;
     log('forced same-page reveal (GPT action gate did not fire)');
     return true;
   }
