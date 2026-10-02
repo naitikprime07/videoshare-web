@@ -1902,18 +1902,24 @@ function interstitialManager(c) {
         return release('defineOutOfPageSlot returned null (another interstitial already holds the per-page slot)', 'fallback');
       }
 
-      // Google's OFFICIAL web-interstitial trigger config goes on pubads() NOT on the slot
-// (developers.google.com/publisher-tag/samples/display-web-interstitial-ad). Slot-level
-// setConfig is ignored by GPT for interstitial triggers, which is why the previous
-// inactivity/endOfArticle triggers never fired and only unhideWindow (tab switch) revealed it.
-// With these pubads triggers GPT reveals the interstitial on the SAME page as soon as the
-// creative renders (adViewable) or on any small scroll / ~5s idle — no tab switch needed.
-      window.googletag.pubads().setConfig({ interstitial: { triggers: {
-        adViewable: true,
-        scroll: true,
-        inactivity: { threshold: 5000 },
-        unhideWindow: { threshold: 5000 }
-      } } });
+      // Interstitial trigger config: the currently-shipped GPT build does NOT expose
+      // pubads().setConfig() (verified on live: throws 'setConfig is not a function',
+      // which aborted the whole claim cmd and broke the interstitial entirely). Use
+      // Slot.setConfig instead — Google's documented per-slot config API — with the
+      // modern trigger keys so the interstitial reveals on the SAME page as soon as
+      // the creative is ready (adViewable) or on any small scroll / ~5s idle. Wrapped
+      // in try/catch so any future GPT change can never abort this cmd again.
+      try {
+        slot.setConfig({ interstitial: { triggers: {
+          adViewable: true,
+          scroll: true,
+          inactivity: { threshold: 5000 },
+          unhideWindow: { threshold: 5000 }
+        } } });
+      } catch (cfgErr) {
+        log('slot.setConfig triggers failed (continuing with GPT defaults): ' +
+            (cfgErr && cfgErr.message ? cfgErr.message : cfgErr));
+      }
       slot.addService(window.googletag.pubads());
 
       state = 'READY';
