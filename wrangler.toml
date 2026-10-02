@@ -80,10 +80,12 @@ GAM_TOP_AD_SIZES = "300x250"
 GAM_BOTTOM_AD_SIZES = "300x250"
 # LEFT sticky VIDEO ad box = a custom dark UI (Advertisement + countdown + X, Preroll placeholder)
 # powered by the IMA SDK. GAM_LEFT_VIDEO_AD_TAG is a full VAST URL (or a GAM video unit path); the code
-# replaces [TIMESTAMP] with Date.now() for a unique correlator. NOTE: Google's free test network serves
-# NO video inventory, so this skippable test tag will show the UI then gracefully self-remove on AD_ERROR
-# until you point it at YOUR OWN GAM video ad unit. Empty = no left video box.
-GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/23338698373/xixvideohub_display_left_video_01&env=vp&impl=s&gdfp_req=1&vpos=preroll&sz=400x300&ciu_szs=300x250,728x90&output=xml_vast4&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
+# replaces [TIMESTAMP] with Date.now() for a unique correlator. Currently pointed at Google's public
+# SAMPLE skippable-preroll VAST (/21775744923) which ALWAYS fills, so the box shows a real playable video
+# every ~30s cycle for verification (it is Google's demo creative = $0 revenue). To earn, book an in-stream
+# video line item in GAM and swap the iu= back to /23338698373/xixvideohub_display_left_video_01 — that
+# own unit currently returns an EMPTY VAST (no inventory booked), which is why it showed AD_ERROR. Empty value = no left video box.
+GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_preroll_skippable&sz=640x480&ciu_szs=300x250,728x90&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=[TIMESTAMP]"
 # GPT WEB INTERSTITIAL (the real out-of-page format, NOT a custom overlay and NOT AdMob):
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
