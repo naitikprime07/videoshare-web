@@ -1902,19 +1902,19 @@ function interstitialManager(c) {
         return release('defineOutOfPageSlot returned null (another interstitial already holds the per-page slot)', 'fallback');
       }
 
-      // Interstitial trigger config: the currently-shipped GPT build does NOT expose
-      // pubads().setConfig() (verified on live: throws 'setConfig is not a function',
-      // which aborted the whole claim cmd and broke the interstitial entirely). Use
-      // Slot.setConfig instead — Google's documented per-slot config API — with the
-      // modern trigger keys so the interstitial reveals on the SAME page as soon as
-      // the creative is ready (adViewable) or on any small scroll / ~5s idle. Wrapped
-      // in try/catch so any future GPT change can never abort this cmd again.
+      // Interstitial trigger config: current GPT build only accepts the OLDER boolean-form
+      // triggers on Slot.setConfig — the modern keys (adViewable / scroll / inactivity:{threshold}/
+      // unhideWindow:{threshold}) are all rejected by GPT with a 'Invalid value encountered'
+      // warning (goo.gle/gpt-message#159), which causes the interstitial to fill but NEVER reveal.
+      // Reverting to the exact older boolean form that was previously verified on live to render
+      // the full-screen creative. Wrapped in try/catch so any future GPT tightening cannot abort
+      // the claim cmd.
       try {
         slot.setConfig({ interstitial: { triggers: {
-          adViewable: true,
-          scroll: true,
-          inactivity: { threshold: 5000 },
-          unhideWindow: { threshold: 5000 }
+          navBar: true,
+          unhideWindow: true,
+          inactivity: true,
+          endOfArticle: true
         } } });
       } catch (cfgErr) {
         log('slot.setConfig triggers failed (continuing with GPT defaults): ' +
