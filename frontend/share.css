@@ -594,7 +594,7 @@ p {
   cursor: help;
 }
 @media (max-width: 480px) {
-  .adbox { display: none; }
+  .adbox { left: 12px; right: 12px; bottom: 12px; width: auto; }
 }
 
 .floating-ad-toggle {
@@ -618,19 +618,43 @@ p {
 .floating-ad.active .floating-ad-toggle::before { content: "\2715"; }
 .floating-ad-left:not(.active) .floating-ad-toggle::before { transform: scaleX(-1); }
 
-/* Mobile/tablet (<1024px): the overlay-style ads (floating side panels + their nubs + the left sticky
-   video box) cover the screen or overlap content at these widths and break the layout — hide them all.
-   The inline top/bottom banners stay in the page flow. */
+/* Mobile/tablet (<1024px): the side ads (left sticky video box + right floating display panel) now
+   show here too, but ONE-BY-ONE so they never overlap the narrow content — the left box plays first
+   and the right panel pops only after it closes (sequencing lives in pages.js). The box is stretched
+   to fit; the inline top/bottom banners stay in the page flow. */
 @media (max-width: 1023px) {
-  .floating-ad,
-  .floating-ad-toggle,
-  .adbox {
-    display: none !important;
-  }
-
+  /* Side ads now show on mobile too, sequenced one-by-one (left video box first, then the right
+     display panel) — see the rail scripts in pages.js. The right panel still slides in FROM THE RIGHT
+     edge but sits near the TOP (top:80px) so the full creative stays clear; width is capped to stay
+     inside on phones. */
   .ad {
     margin: 16px 0;
     overflow-x: hidden;
+  }
+
+  .adbox {
+    left: 12px;
+    right: 12px;
+    bottom: 84px;
+    width: auto;
+  }
+
+  .floating-ad {
+    top: 80px;
+    left: auto;
+    transform: none;
+    width: min(320px, calc(100vw - 16px));
+    transition: right 0.5s ease, left 0.5s ease;
+  }
+
+  /* Close (×) nub sits centred just BELOW the panel so it's clearly visible on mobile (the desktop
+     side-edge nub fell off-screen once the panel is vertically centred). */
+  .floating-ad .floating-ad-toggle {
+    top: auto;
+    bottom: -38px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
   }
 }
 

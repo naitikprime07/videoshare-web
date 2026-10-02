@@ -490,6 +490,7 @@ function videoRail(c) {
     var holder = document.createElement('div');
     holder.innerHTML = template;
     var box = holder.firstElementChild;
+    window.__xixLeftAdActive = true;   // mobile: the right display panel waits for this left box to close
     document.body.appendChild(box);                     // .adbox is position:fixed - body mount is safe
     var q = function (id) { return box.querySelector('#' + id); };
     var countEl = q('adbox-count'), count2El = q('adbox-count2'), secsEl = q('adbox-secs');
@@ -505,6 +506,8 @@ function videoRail(c) {
       try { if (mgr) mgr.destroy(); } catch (err) {}
       try { if (ddc) ddc.destroy(); } catch (err) {}
       close();
+      window.__xixLeftAdActive = false;   // left box gone: allow the queued mobile right panel to pop
+      try { document.dispatchEvent(new Event('xix-left-ad-closed')); } catch (err) {}
       if (REFRESH_SEC > 0) {
         console.log('[GAM VIDEO] cycle ended (' + why + ') - reloading in ' + REFRESH_SEC + 's');
         nextTimer = setTimeout(runCycle, REFRESH_SEC * 1000);
@@ -755,21 +758,31 @@ function displayRails(c) {
   var ids = ${JSON.stringify(ids)};
   window.googletag = window.googletag || { cmd: [] };
   var AUTO_CLOSE = 6000, SLIDE_IN = 2500;
+  // On mobile the two side ads run ONE-BY-ONE: the right display panel stays queued until the left
+  // video box (.adbox) has closed, so they never overlap on the narrow screen. Desktop pops directly.
+  var MOBILE = window.matchMedia("(max-width: 1023px)").matches;
+  var pending = [];
   function setPanel(id, on) {
     var el = document.getElementById('floating-ad-' + id);
     if (el) el.classList[on ? 'add' : 'remove']('active');
   }
   function pop(id) { setPanel(id, true); setTimeout(function () { setPanel(id, false); }, AUTO_CLOSE); }
-  function popIfFilled(id) {
-    var el = document.getElementById('floating-ad-' + id);
-    if (el && el.querySelector('iframe')) pop(id);
+  function request(id) {
+    if (!MOBILE || !window.__xixLeftAdActive) { pop(id); return; }
+    if (pending.indexOf(id) === -1) pending.push(id);
   }
+  document.addEventListener('xix-left-ad-closed', function () {
+    while (pending.length) pop(pending.shift());
+  });
   googletag.cmd.push(function () {
     googletag.pubads().addEventListener('slotRenderEnded', function (e) {
       var id = e.slot && e.slot.getSlotElementId();
-      if (ids.indexOf(id) !== -1 && !e.isEmpty) pop(id);
+      if (ids.indexOf(id) !== -1 && !e.isEmpty) request(id);
     });
-    ids.forEach(function (id) { setTimeout(function () { popIfFilled(id); }, SLIDE_IN); });
+    ids.forEach(function (id) { setTimeout(function () {
+      var el = document.getElementById('floating-ad-' + id);
+      if (el && el.querySelector('iframe')) request(id);
+    }, SLIDE_IN); });
   });
 })();
 </script>`;
