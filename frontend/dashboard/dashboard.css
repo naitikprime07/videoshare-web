@@ -248,9 +248,18 @@ svg {
   letter-spacing: .02em;
 }
 
+/* Brand wordmark image (frontend/brand/icon.png) shown in place of the square logo + name text. */
+.brand-word {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 .brand-mark {
   display: grid;
   place-items: center;
+  position: relative;
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -263,6 +272,25 @@ svg {
   width: 16px;
   height: 16px;
   margin-left: 2px;
+}
+
+/* Custom brand icon (frontend/brand/logo.png) — same auto-swap + fallback as the public pages. */
+.brand-mark img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.brand-mark.has-img {
+  background: none;
+  box-shadow: none;
+}
+
+.brand-mark.has-img svg {
+  display: none;
 }
 
 .sidebar .brand {

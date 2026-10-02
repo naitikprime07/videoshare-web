@@ -30,14 +30,14 @@ crons = ["0 */6 * * *"]
 #   live  : npx wrangler secret put <NAME>
 
 [vars]
-APP_NAME = "VidShare"
+APP_NAME = "XIX Video Downloader"
 ADMIN_USERNAME = "admin"
 ADMIN_TOKEN_TTL_HOURS = "12"
-CHANNEL_NAME = "VidShare"
+CHANNEL_NAME = "XIX Video Downloader"
 TIMEZONE = "Asia/Kolkata"
 # Your public domain, e.g. https://vidshare.in (no trailing slash). Empty = use the request's domain.
 PUBLIC_URL = ""
-SUPPORT_EMAIL = "support@example.com"
+SUPPORT_EMAIL = "support@XIXVideoDownload.com"
 
 # ---- Android App Links (must match the Android app) ----
 ANDROID_PACKAGE = "com.xixvideo.ultimatemedia.downloader"

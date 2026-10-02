@@ -77,7 +77,7 @@ export async function filePage(c) {
               </div>
               <div class="uploader-actions">
                 <button class="btn outlined" type="button" data-open="profile">${icon("person")}View Profile</button>
-                <button class="btn text small" type="button" data-copy="profile">${icon("copy")}Copy</button>
+                <button class="btn text small" type="button" data-copy="file">${icon("copy")}Copy</button>
               </div>
             </div>
           </section>
@@ -303,8 +303,8 @@ function footer(c) {
           </div>
         </div>
         <div class="footer-bottom">
-          <span>© ${new Date().getFullYear()} ${app}. All rights reserved.</span>
-          <nav><a href="/privacy">Privacy Policy</a><span>•</span><a href="mailto:${email}?subject=DMCA">DMCA</a></nav>
+          <span>©${new Date().getFullYear()} xixvideohub.com All rights reserved.</span>
+          <nav><a href="/privacy">Privacy Policy</a></nav>
         </div>
       </div>
     </footer>`;
@@ -838,7 +838,7 @@ function sideRails(c) {
 }
 
 function logo(c) {
-  return `<a href="/" class="logo"><span class="logo-mark">${icon("play")}</span>${escapeHtml(c.env.APP_NAME)}</a>`;
+  return `<a href="/" class="logo"><img class="logo-word" src="/brand/icon.png" alt="${escapeHtml(c.env.APP_NAME)}"></a>`;
 }
 
 /**
@@ -911,7 +911,8 @@ function layout(
 <meta property="og:site_name" content="${escapeHtml(c.env.APP_NAME)}">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
-<link rel="icon" href="${asset(c, "/favicon.svg")}" type="image/svg+xml">
+<link rel="icon" href="/brand/logo.png" type="image/png">
+<link rel="apple-touch-icon" href="/brand/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800;900&display=swap">

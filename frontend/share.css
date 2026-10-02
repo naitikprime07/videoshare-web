@@ -169,9 +169,10 @@ p {
 .logo-mark {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
   background: linear-gradient(to bottom, var(--g400), var(--g600));
   color: #fff;
   font-size: 16px;
@@ -181,9 +182,37 @@ p {
   margin-left: 2px;
 }
 
+/* Custom brand icon (frontend/brand/logo.png). Fills the mark; when it loads we drop the gradient
+   box + play-triangle fallback so the user's logo shows on its own. If the file is missing the <img>
+   removes itself (onerror) and the red play-triangle fallback stays — nothing looks broken in dev. */
+.logo-mark img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+}
+
+.logo-mark.has-img {
+  background: none;
+}
+
+.logo-mark.has-img svg {
+  display: none;
+}
+
 .logo b {
   color: var(--primary);
   font-weight: 800;
+}
+
+/* Brand word image shown in place of the "VidShare" text (frontend/brand/icon.png). */
+.logo img.logo-word {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .mode-toggle {
@@ -1491,6 +1520,15 @@ details.acc .answer a {
 }
 
 .footer-bottom nav a:hover {
+  color: var(--primary);
+}
+
+.footer-bottom .foot-domain {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-bottom .foot-domain:hover {
   color: var(--primary);
 }
 
