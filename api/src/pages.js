@@ -1684,115 +1684,401 @@ function videoRail(c) {
 function interstitialManager(c) {
   const unit = String(c.env.GAM_INTERSTITIAL_AD_UNIT || "").trim();
   if (!unit) return "";
+
   const delay = parseInt(c.env.GAM_INTERSTITIAL_DELAY_SEC, 10);
+
   return `<script>
-  (function () {
-    var UNIT = ${JSON.stringify(unit)};
-    var DELAY_SEC = ${isNaN(delay) ? 20 : delay};
-  var SHOW_CAP_MS = 60000;    // stop tracking a creative that filled but is never revealed
-  var GPT_WAIT_MS = 15000;    // grace for gpt.js to execute our queued command
-  function log(m) { console.log('[GAM INTERSTITIAL] ' + m); }
-  if (window.gamInterstitial) { log('manager already initialised - skipping duplicate'); return; }
-  log('initializing');
+(function () {
+  'use strict';
 
-  var state = 'IDLE', slot = null, renderHandler = null, pollTimer = null;
+  var UNIT = ${JSON.stringify(unit)};
+  var DELAY_SEC = ${isNaN(delay) ? 20 : delay};
 
-  // Release everything and go back to IDLE. kind: 'fallback' (ad unavailable) or 'completed'.
-  function release(reason, kind) {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    if (renderHandler) {
-      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
-      renderHandler = null;
+  var GPT_WAIT_MS = 15000;
+  var SHOW_CAP_MS = 60000;
+
+  function log(message) {
+    console.log('[GAM INTERSTITIAL] ' + message);
+  }
+
+  /*
+   * IMPORTANT:
+   * Only one manager is allowed on this page.
+   */
+  if (window.__xixGamInterstitialManager) {
+    log('already initialized - skipping duplicate');
+    return;
+  }
+
+  window.__xixGamInterstitialManager = true;
+
+  var state = 'IDLE';
+  var slot = null;
+  var renderHandler = null;
+  var pollTimer = null;
+  var showTimer = null;
+
+  function cleanupListener() {
+    if (renderHandler && window.googletag && window.googletag.pubads) {
+      try {
+        window.googletag
+          .pubads()
+          .removeEventListener('slotRenderEnded', renderHandler);
+      } catch (e) {}
     }
-    if (slot) { try { window.googletag.destroySlots([slot]); } catch (err) {} slot = null; }
-    state = 'IDLE';
-    log(kind + ' - ' + reason + ' - slot released, page flow unaffected');
+
+    renderHandler = null;
   }
 
-  function container() { try { return document.getElementById(slot.getSlotElementId()); } catch (err) { return null; } }
-  function onScreen(node) {
-    if (!node) return false;
-    var cs = window.getComputedStyle(node);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
-    var r = node.getBoundingClientRect();
-    return r.width > 80 && r.height > 80;
+  function cleanupPoll() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
   }
-  // GPT owns the presentation; we only observe its container to know when the user closed it.
-  function track() {
-    var revealed = false, t0 = Date.now();
+
+  function cleanupShowTimer() {
+    if (showTimer) {
+      clearTimeout(showTimer);
+      showTimer = null;
+    }
+  }
+
+  function release(reason, type) {
+    cleanupPoll();
+    cleanupShowTimer();
+    cleanupListener();
+
+    if (slot && window.googletag && window.googletag.destroySlots) {
+      try {
+        window.googletag.destroySlots([slot]);
+      } catch (e) {}
+    }
+
+    slot = null;
+    state = 'IDLE';
+
+    log(type + ' - ' + reason);
+  }
+
+  function getContainer() {
+    if (!slot) return null;
+
+    try {
+      var id = slot.getSlotElementId();
+      return document.getElementById(id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isVisible(node) {
+    if (!node) return false;
+
+    try {
+      var style = window.getComputedStyle(node);
+
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        Number(style.opacity) === 0
+      ) {
+        return false;
+      }
+
+      var rect = node.getBoundingClientRect();
+
+      return rect.width > 80 && rect.height > 80;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function monitorInterstitial() {
+    cleanupPoll();
+
+    var startedAt = Date.now();
+    var wasVisible = false;
+
     pollTimer = setInterval(function () {
-      var node = container();
-      if (onScreen(node)) {
-        if (!revealed) { revealed = true; state = 'SHOWING'; log('interstitial shown'); }
+
+      if (!slot) {
+        cleanupPoll();
         return;
       }
-      if (revealed) { log('interstitial closed'); release('closed by user', 'completed'); return; }
-      if (Date.now() - t0 > SHOW_CAP_MS) {
-        release('filled but not revealed within ' + (SHOW_CAP_MS / 1000) + 's (Google action/frequency gating)', 'fallback');
+
+      var node = getContainer();
+
+      if (isVisible(node)) {
+
+        if (!wasVisible) {
+          wasVisible = true;
+          state = 'SHOWING';
+
+          log('interstitial shown');
+        }
+
+        return;
       }
+
+      /*
+       * GPT removed/closed the interstitial.
+       */
+      if (wasVisible) {
+        log('interstitial closed');
+
+        release(
+          'closed by user',
+          'completed'
+        );
+
+        return;
+      }
+
+      /*
+       * Filled but never became visible.
+       */
+      if (Date.now() - startedAt > SHOW_CAP_MS) {
+
+        release(
+          'filled but not revealed within ' +
+          (SHOW_CAP_MS / 1000) +
+          's',
+          'fallback'
+        );
+      }
+
     }, 1000);
   }
 
-  // Claim the SINGLE-PER-PAGE GPT INTERSTITIAL slot the instant GPT is ready (at load, NOT after the
-  // delay), so OUR out-of-page slot holds the format BEFORE Google's auto-ads page-level interstitial
-  // (Latest3) can take it. The delay timer only fires display() — the actual request/reveal.
-  function claimSlot() {
-    state = 'LOADING';
-    log('claiming web interstitial slot');
-    var ran = false;
-    var guard = setTimeout(function () {
-      if (ran) return;
-      release('GPT did not become ready within ' + (GPT_WAIT_MS / 1000) + 's', 'fallback');
+  function createSlot() {
+
+    if (state !== 'IDLE') {
+      log('createSlot skipped - state=' + state);
+      return;
+    }
+
+    state = 'CREATING';
+
+    log('waiting for GPT');
+
+    var finished = false;
+
+    var timeout = setTimeout(function () {
+
+      if (finished) return;
+
+      finished = true;
+
+      release(
+        'GPT did not become ready within ' +
+        (GPT_WAIT_MS / 1000) +
+        's',
+        'fallback'
+      );
+
     }, GPT_WAIT_MS);
-    window.googletag = window.googletag || { cmd: [] };
+
+    window.googletag = window.googletag || {
+      cmd: []
+    };
+
     window.googletag.cmd.push(function () {
-      ran = true;
-      clearTimeout(guard);
+
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(timeout);
+
       log('GPT ready');
 
-      var F = window.googletag.enums && window.googletag.enums.OutOfPageFormat;
-      if (!F || !F.INTERSTITIAL) {
-        return release('OutOfPageFormat.INTERSTITIAL unavailable in this environment', 'fallback');
+      /*
+       * Make absolutely sure this manager has not
+       * already created a slot.
+       */
+      if (slot) {
+        log('slot already exists - skipping creation');
+        state = 'READY';
+        return;
       }
 
-      slot = window.googletag.defineOutOfPageSlot(UNIT, F.INTERSTITIAL);
-      if (!slot) {
-        return release('defineOutOfPageSlot returned null (another interstitial already holds the per-page slot)', 'fallback');
+      var formats =
+        window.googletag.enums &&
+        window.googletag.enums.OutOfPageFormat;
+
+      if (!formats || !formats.INTERSTITIAL) {
+
+        release(
+          'OutOfPageFormat.INTERSTITIAL unavailable',
+          'fallback'
+        );
+
+        return;
       }
 
-      slot.setConfig({ interstitial: { triggers: { navBar: true, unhideWindow: true, inactivity: true, endOfArticle: true } } });
-      slot.addService(window.googletag.pubads());
+      /*
+       * Create ONE web interstitial slot.
+       */
+      var newSlot =
+        window.googletag.defineOutOfPageSlot(
+          UNIT,
+          formats.INTERSTITIAL
+        );
+
+      if (!newSlot) {
+
+        release(
+          'defineOutOfPageSlot returned null',
+          'fallback'
+        );
+
+        return;
+      }
+
+      slot = newSlot;
+
+      /*
+       * Do NOT use continueReading or backward.
+       * These can introduce Google-managed behavior
+       * that we don't want here.
+       */
+      slot.setConfig({
+        interstitial: {
+          triggers: {
+            navBar: true,
+            unhideWindow: true,
+            inactivity: true,
+            endOfArticle: true
+          }
+        }
+      });
+
+      slot.addService(
+        window.googletag.pubads()
+      );
 
       state = 'READY';
-      log('slot claimed - will display after the ' + DELAY_SEC + 's timer');
+
+      log(
+        'slot created successfully - ' +
+        'show scheduled after ' +
+        DELAY_SEC +
+        's'
+      );
+
     });
   }
 
-  // After the delay, attach the render handler + display() the already-claimed slot. If GPT is still
-  // loading, poll once a second until the claim resolves (READY) or fell back (IDLE).
   function show() {
-    if (state === 'IDLE') { log('show skipped - manager already released'); return; }
-    if (state !== 'READY') { setTimeout(show, 1000); return; }
-    state = 'LOADING';
+
+    if (state !== 'READY') {
+
+      log(
+        'show skipped - slot not ready. state=' +
+        state
+      );
+
+      return;
+    }
+
+    if (!slot) {
+      log('show skipped - no slot');
+      return;
+    }
+
+    state = 'REQUESTING';
+
     log('displaying web interstitial');
 
-    renderHandler = function (e) {
-      if (!e || e.slot !== slot) return;
-      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
-      renderHandler = null;
+    cleanupListener();
+
+    renderHandler = function (event) {
+
+      if (!event || event.slot !== slot) {
+        return;
+      }
+
+      cleanupListener();
+
       log('render event');
-      if (e.isEmpty) { return release('no fill', 'fallback'); }
-      log('ad received - GPT presents the web interstitial');
+
+      if (event.isEmpty) {
+
+        release(
+          'no fill',
+          'fallback'
+        );
+
+        return;
+      }
+
+      log(
+        'ad received - GPT presents the web interstitial'
+      );
     };
-    window.googletag.pubads().addEventListener('slotRenderEnded', renderHandler);
-    window.googletag.display(slot);
-    track();
+
+    try {
+      window.googletag
+        .pubads()
+        .addEventListener(
+          'slotRenderEnded',
+          renderHandler
+        );
+
+      window.googletag.display(slot);
+
+      log('googletag.display() called');
+
+      monitorInterstitial();
+
+    } catch (error) {
+
+      log(
+        'display error: ' +
+        (error && error.message
+          ? error.message
+          : error)
+      );
+
+      release(
+        'display() exception',
+        'fallback'
+      );
+    }
   }
 
-  // debug handle only: window.gamInterstitial.show() / .state()
-  window.gamInterstitial = { show: show, state: function () { return state; } };
-  claimSlot();
-  setTimeout(show, DELAY_SEC * 1000);
+  /*
+   * Public debug API.
+   */
+  window.gamInterstitial = {
+
+    show: function () {
+      show();
+    },
+
+    state: function () {
+      return state;
+    }
+
+  };
+
+  /*
+   * Create/claim the slot once.
+   */
+  createSlot();
+
+  /*
+   * Wait the configured number of seconds
+   * before calling display().
+   */
+  showTimer = setTimeout(function () {
+
+    showTimer = null;
+
+    show();
+
+  }, DELAY_SEC * 1000);
+
 })();
 </script>`;
 }
