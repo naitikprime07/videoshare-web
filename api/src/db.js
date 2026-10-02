@@ -105,30 +105,42 @@ const SORTS = {
 };
 
 /**
- * Page of videos with their serial (upload order, computed over every video before the search
- * filter — exactly what the Mongo window function did), today's count joined from file_daily, and
- * the filtered total in every row, so the caller knows whether a next page exists.
+ * Page of videos with their serial (upload order, counted over every non-uploading video that came
+ * before it — the same order the Mongo window function produced) and today's count joined from
+ * file_daily. The filtered total comes back as its OWN value (a separate index-only COUNT) instead of
+ * COUNT(*) OVER () on every row: the window variant forced D1 to read EVERY matching video on each
+ * page (and re-run the serial subquery for each), which is what blew past the read-row quota. The
+ * newest-first page + the serial count now ride the files_notuploading_created partial index
+ * (see 0002_read_indexes.sql), so only the returned page is ever materialised.
  */
 export async function listDashboardFiles(env, { sort, search, today, offset, limit }) {
   const order = SORTS[sort] || SORTS.newest;
   const where = ["f.status != 'uploading'", ...(search ? ['LOWER(f.name) LIKE ?'] : [])];
+  const whereSql = where.join(' AND ');
   const searchBinds = search ? [`%${search}%`] : [];
+  // Filtered total: one COUNT over the partial index, no per-row serial and no wide-table fetch.
+  const totalRow = await env.DB
+    .prepare(`SELECT COUNT(*) AS n FROM files f WHERE ${whereSql}`)
+    .bind(...searchBinds)
+    .first();
+  const total = totalRow?.n || 0;
+  // The page: ORDER BY + LIMIT stop on the index after `limit` rows, so the serial subquery runs for
+  // the returned page only (not for the whole table). limit+1 read so an empty next page is detectable
+  // even though `total` already answers that; callers slice back to `limit`.
   const sql = `
     SELECT f.*,
            (SELECT COUNT(*) FROM files p
              WHERE p.status != 'uploading' AND (p.created_at, p.id) < (f.created_at, f.id)) + 1 AS serial,
-           COALESCE(fd.views, 0) AS today_views,
-           COUNT(*) OVER () AS total
+           COALESCE(fd.views, 0) AS today_views
     FROM files f
     LEFT JOIN file_daily fd ON fd.file_id = f.id AND fd.day = ?
-    WHERE ${where.join(' AND ')}
+    WHERE ${whereSql}
     ORDER BY ${order}
     LIMIT ? OFFSET ?`;
   const { results } = await env.DB
     .prepare(sql)
     .bind(today, ...searchBinds, limit + 1, offset)
     .all();
-  const total = results[0]?.total || 0;
   const rows = results.slice(0, limit).map(rowToFile);
   return { rows, total };
 }
