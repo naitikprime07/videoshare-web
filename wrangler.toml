@@ -83,7 +83,7 @@ GAM_BOTTOM_AD_SIZES = "300x250"
 # replaces [TIMESTAMP] with Date.now() for a unique correlator. NOTE: Google's free test network serves
 # NO video inventory, so this skippable test tag will show the UI then gracefully self-remove on AD_ERROR
 # until you point it at YOUR OWN GAM video ad unit. Empty = no left video box.
-GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/23338698373/xixvideohub_display_left_video_01&env=vp&impl=s&gdfp_req=1&vpos=preroll&sz=400x300&ciu_szs=300x250,728x90&output=vast&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
+GAM_LEFT_VIDEO_AD_TAG = "https://pubads.g.doubleclick.net/gampad/ads?iu=/23338698373/xixvideohub_display_left_video_01&env=vp&impl=s&gdfp_req=1&vpos=preroll&sz=400x300&ciu_szs=300x250,728x90&output=xml_vast4&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
 # GPT WEB INTERSTITIAL (the real out-of-page format, NOT a custom overlay and NOT AdMob):
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
