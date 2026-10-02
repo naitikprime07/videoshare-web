@@ -439,129 +439,1014 @@ function imaAdTagUrl(env, pathOrUrl) {
 }
 
 /**
- * Left sticky VIDEO ad box (custom UI + Google IMA SDK). An "Advertisement" bar with an 8 to 0
- * countdown circle + white X; a "Google Ad Manager / Preroll / N Seconds" placeholder; a bottom bar
- * with a secondary timer + "?" help. At 0 the placeholder is swapped for the IMA video player (a
- * skippable preroll). Each cycle plays EXACTLY ONE creative (2nd ad in a pod + any leftover blank
- * frame are prevented by a one-shot teardown that destroys AdsManager + container). Like the display
- * slots, the box then RELOADS with a fresh request after GAM_AD_REFRESH_SEC (30s default) — same
- * cycle-to-cycle behaviour as the banner ads; 0 = single play, no reload. X closes the current
- * cycle (next one still reloads on the timer). Driven by GAM_LEFT_VIDEO_AD_TAG (full VAST URL or a
- * GAM video unit path — [TIMESTAMP] is replaced with a NEW Date.now() every cycle). '' when unset.
+ * Left sticky VIDEO ad box using Google IMA SDK + GAM VAST.
+ *
+ * Flow:
+ * 1. Show custom Advertisement UI.
+ * 2. 8-second countdown.
+ * 3. Request GAM VAST preroll.
+ * 4. Play one creative.
+ * 5. Destroy IMA objects after the cycle.
+ * 6. Reload after GAM_AD_REFRESH_SEC.
+ *
+ * GAM_LEFT_VIDEO_AD_TAG must contain the full GAM VAST URL.
+ * [TIMESTAMP] is replaced with Date.now() for each request.
  */
 function videoRail(c) {
   const tag = imaAdTagUrl(c.env, c.env.GAM_LEFT_VIDEO_AD_TAG);
+
   if (!tag) return "";
+
   let secs = parseInt(c.env.GAM_AD_REFRESH_SEC, 10);
-  if (isNaN(secs)) secs = 30;
-  return `<div id="adbox" class="adbox" aria-label="Advertisement">
+
+  if (isNaN(secs)) {
+    secs = 30;
+  }
+
+  return `
+<div id="adbox" class="adbox" aria-label="Advertisement">
+
   <div class="adbox-top">
     <span class="adbox-label">Advertisement</span>
-    <span class="adbox-count" id="adbox-count">8</span>
-    <button type="button" class="adbox-close" id="adbox-close" aria-label="Close ad">&times;</button>
+
+    <span
+      class="adbox-count"
+      id="adbox-count"
+    >8</span>
+
+    <button
+      type="button"
+      class="adbox-close"
+      id="adbox-close"
+      aria-label="Close ad"
+    >&times;</button>
   </div>
+
   <div class="adbox-mid">
-    <div class="adbox-ph" id="adbox-ph">
-      <span class="gam">Google Ad Manager</span>
-      <span class="pre">Preroll</span>
-      <span class="secs"><b id="adbox-secs">8</b> Seconds</span>
+
+    <div
+      class="adbox-ph"
+      id="adbox-ph"
+    >
+      <span class="gam">
+        Google Ad Manager
+      </span>
+
+      <span class="pre">
+        Preroll
+      </span>
+
+      <span class="secs">
+        <b id="adbox-secs">8</b> Seconds
+      </span>
     </div>
-    <div class="adbox-ima" id="adbox-ima"><video id="adbox-video" muted playsinline></video></div>
+
+    <div
+      class="adbox-ima"
+      id="adbox-ima"
+      style="display:none;"
+    >
+      <video
+        id="adbox-video"
+        muted
+        playsinline
+        webkit-playsinline
+        preload="auto"
+      ></video>
+    </div>
+
   </div>
+
   <div class="adbox-bottom">
-    <span class="adbox-count2" id="adbox-count2">8</span>
-    <span class="adbox-help" title="Why this ad?">?</span>
+
+    <span
+      class="adbox-count2"
+      id="adbox-count2"
+    >8</span>
+
+    <span
+      class="adbox-help"
+      title="Why this ad?"
+    >?</span>
+
   </div>
+
 </div>
+
 <script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
+
 <script>
 (function () {
+
   var TAG_URL = ${JSON.stringify(tag)};
-  var REFRESH_SEC = ${secs ? "Math.max(30, " + secs + ")" : 0};   // same reload cadence as the display slots
+
+  var REFRESH_SEC =
+    ${secs ? "Math.max(30, " + secs + ")" : 0};
+
   var START = 8;
-  if (window.__gamVideoBox) { console.log('[GAM VIDEO] already running - skipping duplicate'); return; }
-  var first = document.getElementById('adbox');
-  if (!first) return;
+
+  /*
+   * Prevent duplicate initialization.
+   */
+  if (window.__gamVideoBox) {
+
+    console.log(
+      '[GAM VIDEO] already running - skipping duplicate'
+    );
+
+    return;
+  }
+
+  var first =
+    document.getElementById('adbox');
+
+  if (!first) {
+
+    console.log(
+      '[GAM VIDEO] adbox not found'
+    );
+
+    return;
+  }
+
   window.__gamVideoBox = true;
-  var template = first.outerHTML;                       // keep the markup to re-mount every cycle
-  first.parentNode.removeChild(first);
-  function freshTag() { return TAG_URL.replace('[TIMESTAMP]', Date.now()); }  // new correlator per cycle
+
+  /*
+   * Keep template for future cycles.
+   */
+  var template =
+    first.outerHTML;
+
+  if (first.parentNode) {
+    first.parentNode.removeChild(first);
+  }
+
+  /*
+   * Generate a fresh GAM request URL.
+   *
+   * Your environment variable contains:
+   * [TIMESTAMP]
+   *
+   * We replace it for every new ad request.
+   */
+  function freshTag() {
+
+    var timestamp =
+      String(Date.now());
+
+    var url =
+      TAG_URL.replace(
+        '[TIMESTAMP]',
+        timestamp
+      );
+
+    console.log(
+      '[GAM VIDEO] VAST request URL:',
+      url
+    );
+
+    return url;
+  }
+
+  /*
+   * Get IMA SDK.
+   */
+  function getIMA() {
+
+    if (
+      window.google &&
+      window.google.ima
+    ) {
+      return window.google.ima;
+    }
+
+    if (
+      window.goog &&
+      window.goog.ima
+    ) {
+      return window.goog.ima;
+    }
+
+    return null;
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * RUN ONE CYCLE
+   * ---------------------------------------------------------
+   */
   function runCycle() {
-    var holder = document.createElement('div');
-    holder.innerHTML = template;
-    var box = holder.firstElementChild;
-    window.__xixLeftAdActive = true;   // mobile: the right display panel waits for this left box to close
-    document.body.appendChild(box);                     // .adbox is position:fixed - body mount is safe
-    var q = function (id) { return box.querySelector('#' + id); };
-    var countEl = q('adbox-count'), count2El = q('adbox-count2'), secsEl = q('adbox-secs');
-    var ph = q('adbox-ph'), ima = q('adbox-ima'), video = q('adbox-video');
-    var done = false, started = 0, mgr = null, ddc = null, tickTimer = null, nextTimer = null;
-    console.log('[GAM VIDEO] cycle started ' + new Date().toISOString());
-    function close() { if (box.parentNode) box.parentNode.removeChild(box); }
-    // One-shot teardown per cycle: stop the pod dead after the FIRST creative, destroy IMA objects,
-    // remove the box, then (like the display slots) schedule a brand-new cycle after REFRESH_SEC.
-    function teardown(why) {
-      if (done) return; done = true;
-      clearTimeout(tickTimer); clearTimeout(nextTimer);
-      try { if (mgr) mgr.destroy(); } catch (err) {}
-      try { if (ddc) ddc.destroy(); } catch (err) {}
-      close();
-      window.__xixLeftAdActive = false;   // left box gone: allow the queued mobile right panel to pop
-      try { document.dispatchEvent(new Event('xix-left-ad-closed')); } catch (err) {}
-      if (REFRESH_SEC > 0) {
-        console.log('[GAM VIDEO] cycle ended (' + why + ') - reloading in ' + REFRESH_SEC + 's');
-        nextTimer = setTimeout(runCycle, REFRESH_SEC * 1000);
-      } else {
-        console.log('[GAM VIDEO] cycle ended (' + why + ') - auto-reload off');
+
+    var holder =
+      document.createElement('div');
+
+    holder.innerHTML =
+      template;
+
+    var box =
+      holder.firstElementChild;
+
+    if (!box) {
+
+      console.log(
+        '[GAM VIDEO] could not create ad box'
+      );
+
+      return;
+    }
+
+    /*
+     * Tell other ad UI that left video ad is active.
+     */
+    window.__xixLeftAdActive = true;
+
+    document.body.appendChild(box);
+
+    function q(id) {
+      return box.querySelector(
+        '#' + id
+      );
+    }
+
+    var countEl =
+      q('adbox-count');
+
+    var count2El =
+      q('adbox-count2');
+
+    var secsEl =
+      q('adbox-secs');
+
+    var ph =
+      q('adbox-ph');
+
+    var ima =
+      q('adbox-ima');
+
+    var video =
+      q('adbox-video');
+
+    var closeBtn =
+      q('adbox-close');
+
+    var done = false;
+
+    var started = 0;
+
+    var mgr = null;
+    var ddc = null;
+    var loader = null;
+
+    var tickTimer = null;
+    var nextTimer = null;
+
+    console.log(
+      '[GAM VIDEO] cycle started ' +
+      new Date().toISOString()
+    );
+
+    /*
+     * -------------------------------------------------------
+     * CLOSE BOX
+     * -------------------------------------------------------
+     */
+    function closeBox() {
+
+      try {
+
+        if (
+          box &&
+          box.parentNode
+        ) {
+          box.parentNode.removeChild(box);
+        }
+
+      } catch (err) {
+
+        console.error(
+          '[GAM VIDEO] close box error',
+          err
+        );
+
       }
     }
-    q('adbox-close').addEventListener('click', function () { teardown('manual close'); });
-    function paint(el, frac) { if (el) el.style.background = 'conic-gradient(#4CAF50 ' + (frac * 360) + 'deg, rgba(255,255,255,.14) 0deg)'; }
+
+    /*
+     * -------------------------------------------------------
+     * TEARDOWN
+     * -------------------------------------------------------
+     */
+    function teardown(reason) {
+
+      if (done) {
+        return;
+      }
+
+      done = true;
+
+      console.log(
+        '[GAM VIDEO] teardown:',
+        reason
+      );
+
+      if (tickTimer) {
+
+        clearTimeout(
+          tickTimer
+        );
+
+        tickTimer = null;
+      }
+
+      if (nextTimer) {
+
+        clearTimeout(
+          nextTimer
+        );
+
+        nextTimer = null;
+      }
+
+      /*
+       * Stop video.
+       */
+      try {
+
+        if (video) {
+
+          video.pause();
+
+          video.removeAttribute(
+            'src'
+          );
+
+          video.load();
+        }
+
+      } catch (err) {}
+
+      /*
+       * Destroy AdsManager.
+       */
+      try {
+
+        if (mgr) {
+          mgr.destroy();
+        }
+
+      } catch (err) {}
+
+      mgr = null;
+
+      /*
+       * Destroy AdsLoader.
+       */
+      try {
+
+        if (loader) {
+          loader.destroy();
+        }
+
+      } catch (err) {}
+
+      loader = null;
+
+      /*
+       * Destroy display container.
+       */
+      try {
+
+        if (ddc) {
+          ddc.destroy();
+        }
+
+      } catch (err) {}
+
+      ddc = null;
+
+      /*
+       * Remove ad box.
+       */
+      closeBox();
+
+      /*
+       * Tell other ad UI that left ad is closed.
+       */
+      window.__xixLeftAdActive = false;
+
+      try {
+
+        document.dispatchEvent(
+          new Event(
+            'xix-left-ad-closed'
+          )
+        );
+
+      } catch (err) {}
+
+      /*
+       * Start next cycle.
+       */
+      if (REFRESH_SEC > 0) {
+
+        console.log(
+          '[GAM VIDEO] cycle ended (' +
+          reason +
+          ') - next cycle in ' +
+          REFRESH_SEC +
+          's'
+        );
+
+        nextTimer =
+          setTimeout(
+            runCycle,
+            REFRESH_SEC * 1000
+          );
+
+      } else {
+
+        console.log(
+          '[GAM VIDEO] auto refresh disabled'
+        );
+
+      }
+    }
+
+    /*
+     * -------------------------------------------------------
+     * CLOSE BUTTON
+     * -------------------------------------------------------
+     */
+    if (closeBtn) {
+
+      closeBtn.addEventListener(
+        'click',
+        function () {
+
+          teardown(
+            'manual close'
+          );
+
+        },
+        false
+      );
+
+    }
+
+    /*
+     * -------------------------------------------------------
+     * COUNTDOWN CIRCLE
+     * -------------------------------------------------------
+     */
+    function paint(
+      el,
+      fraction
+    ) {
+
+      if (!el) {
+        return;
+      }
+
+      var degrees =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            fraction
+          )
+        ) * 360;
+
+      el.style.background =
+        'conic-gradient(' +
+        '#4CAF50 ' +
+        degrees +
+        'deg, ' +
+        'rgba(255,255,255,.14) 0deg)';
+
+    }
+
     var remaining = START;
-    function tick() {
-      if (done) return;
-      remaining -= 1;
-      var frac = Math.max(0, remaining / START);
-      if (countEl) countEl.textContent = remaining;
-      if (count2El) count2El.textContent = remaining;
-      if (secsEl) secsEl.textContent = remaining;
-      paint(countEl, frac); paint(count2El, frac);
-      if (remaining > 0) { tickTimer = setTimeout(tick, 1000); } else { tickTimer = setTimeout(startAd, 400); }
+
+    function updateCountdown() {
+
+      if (countEl) {
+        countEl.textContent =
+          remaining;
+      }
+
+      if (count2El) {
+        count2El.textContent =
+          remaining;
+      }
+
+      if (secsEl) {
+        secsEl.textContent =
+          remaining;
+      }
+
+      var fraction =
+        remaining / START;
+
+      paint(
+        countEl,
+        fraction
+      );
+
+      paint(
+        count2El,
+        fraction
+      );
     }
+
+    /*
+     * -------------------------------------------------------
+     * START IMA
+     * -------------------------------------------------------
+     */
     function startAd() {
-      if (done) return;
-      if (ph) ph.style.display = 'none';
-      if (ima) ima.style.display = 'block';
-      var IMA = (window.goog && window.goog.ima) || (window.google && window.google.ima);
-      if (!IMA) { teardown('IMA SDK missing'); return; }
-      ddc = new IMA.AdDisplayContainer(ima, video);
-      ddc.initialize();
-      var loader = new IMA.AdsLoader(ddc);
-      loader.addEventListener(IMA.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, function (e) {
-        if (done) return;
-        try { mgr = e.getAdsManager(video, new IMA.AdsRenderingSettings()); } catch (err) { return teardown('getAdsManager failed'); }
-        mgr.addEventListener(IMA.AdErrorEvent.Type.AD_ERROR, function () { teardown('AD_ERROR'); });
-        mgr.addEventListener(IMA.AdEvent.Type.SKIPPED, function () { teardown('skipped'); });
-        mgr.addEventListener(IMA.AdEvent.Type.COMPLETED, function () { teardown('completed'); });
-        mgr.addEventListener(IMA.AdEvent.Type.ALL_ADS_COMPLETED, function () { teardown('all completed'); });
-        // Hard guard: if the VAST pod contains more than one creative, tear down the moment a 2nd starts.
-        mgr.addEventListener(IMA.AdEvent.Type.STARTED, function () { if (++started > 1) teardown('2nd ad blocked'); }, false);
-        try {
-          mgr.init(ima.clientWidth || 300, ima.clientHeight || 200, IMA.ViewMode.NORMAL);
-          mgr.start();
-        } catch (err) { teardown('init failed'); }
-      }, false);
-      loader.addEventListener(IMA.AdErrorEvent.Type.AD_ERROR, function () { teardown('loader AD_ERROR'); }, false);
-      var req = new IMA.AdsRequest();
-      req.adTagUrl = freshTag();
-      req.linearAdSlotWidthPx = 300;
-      req.linearAdSlotHeightPx = 200;
-      loader.requestAds(req);
+
+      if (done) {
+        return;
+      }
+
+      console.log(
+        '[GAM VIDEO] starting IMA ad'
+      );
+
+      var IMA =
+        getIMA();
+
+      if (!IMA) {
+
+        teardown(
+          'IMA SDK missing'
+        );
+
+        return;
+      }
+
+      /*
+       * Hide placeholder.
+       */
+      if (ph) {
+        ph.style.display =
+          'none';
+      }
+
+      /*
+       * Show video container.
+       */
+      if (ima) {
+        ima.style.display =
+          'block';
+      }
+
+      /*
+       * -----------------------------------------------------
+       * CREATE DISPLAY CONTAINER
+       * -----------------------------------------------------
+       */
+      try {
+
+        ddc =
+          new IMA.AdDisplayContainer(
+            ima,
+            video
+          );
+
+        ddc.initialize();
+
+        console.log(
+          '[GAM VIDEO] AdDisplayContainer initialized'
+        );
+
+      } catch (err) {
+
+        console.error(
+          '[GAM VIDEO] AdDisplayContainer error',
+          err
+        );
+
+        teardown(
+          'AdDisplayContainer initialize failed'
+        );
+
+        return;
+      }
+
+      /*
+       * -----------------------------------------------------
+       * CREATE ADS LOADER
+       * -----------------------------------------------------
+       */
+      try {
+
+        loader =
+          new IMA.AdsLoader(
+            ddc
+          );
+
+      } catch (err) {
+
+        console.error(
+          '[GAM VIDEO] AdsLoader creation failed',
+          err
+        );
+
+        teardown(
+          'AdsLoader creation failed'
+        );
+
+        return;
+      }
+
+      /*
+       * -----------------------------------------------------
+       * ADS MANAGER LOADED
+       * -----------------------------------------------------
+       */
+      loader.addEventListener(
+        IMA.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+        function (event) {
+
+          if (done) {
+            return;
+          }
+
+          console.log(
+            '[GAM VIDEO] ADS_MANAGER_LOADED'
+          );
+
+          try {
+
+            mgr =
+              event.getAdsManager(
+                video,
+                new IMA.AdsRenderingSettings()
+              );
+
+          } catch (err) {
+
+            console.error(
+              '[GAM VIDEO] getAdsManager failed',
+              err
+            );
+
+            teardown(
+              'getAdsManager failed'
+            );
+
+            return;
+          }
+
+          /*
+           * -------------------------------------------------
+           * ADS MANAGER ERROR
+           * -------------------------------------------------
+           */
+          mgr.addEventListener(
+            IMA.AdErrorEvent.Type.AD_ERROR,
+            function (event) {
+
+              var error =
+                event &&
+                event.getError
+                  ? event.getError()
+                  : null;
+
+              console.error(
+                '[GAM VIDEO] AD_ERROR',
+                error
+              );
+
+              if (error) {
+
+                try {
+
+                  console.error(
+                    '[GAM VIDEO] error code:',
+                    error.getErrorCode
+                      ? error.getErrorCode()
+                      : ''
+                  );
+
+                  console.error(
+                    '[GAM VIDEO] error message:',
+                    error.getMessage
+                      ? error.getMessage()
+                      : ''
+                  );
+
+                } catch (err) {}
+
+              }
+
+              teardown(
+                'AD_ERROR'
+              );
+
+            },
+            false
+          );
+
+          /*
+           * -------------------------------------------------
+           * AD STARTED
+           * -------------------------------------------------
+           */
+          mgr.addEventListener(
+            IMA.AdEvent.Type.STARTED,
+            function () {
+
+              if (done) {
+                return;
+              }
+
+              started++;
+
+              console.log(
+                '[GAM VIDEO] ad STARTED #' +
+                started
+              );
+
+              /*
+               * Only one creative.
+               */
+              if (started > 1) {
+
+                teardown(
+                  '2nd ad blocked'
+                );
+
+              }
+
+            },
+            false
+          );
+
+          /*
+           * -------------------------------------------------
+           * SKIPPED
+           * -------------------------------------------------
+           */
+          mgr.addEventListener(
+            IMA.AdEvent.Type.SKIPPED,
+            function () {
+
+              teardown(
+                'skipped'
+              );
+
+            },
+            false
+          );
+
+          /*
+           * -------------------------------------------------
+           * COMPLETED
+           * -------------------------------------------------
+           */
+          mgr.addEventListener(
+            IMA.AdEvent.Type.COMPLETED,
+            function () {
+
+              teardown(
+                'completed'
+              );
+
+            },
+            false
+          );
+
+          /*
+           * -------------------------------------------------
+           * ALL ADS COMPLETED
+           * -------------------------------------------------
+           */
+          mgr.addEventListener(
+            IMA.AdEvent.Type.ALL_ADS_COMPLETED,
+            function () {
+
+              teardown(
+                'all completed'
+              );
+
+            },
+            false
+          );
+
+          /*
+           * -------------------------------------------------
+           * INIT + START
+           * -------------------------------------------------
+           */
+          try {
+
+            var width =
+              ima &&
+              ima.clientWidth
+                ? ima.clientWidth
+                : 300;
+
+            var height =
+              ima &&
+              ima.clientHeight
+                ? ima.clientHeight
+                : 200;
+
+            mgr.init(
+              width,
+              height,
+              IMA.ViewMode.NORMAL
+            );
+
+            console.log(
+              '[GAM VIDEO] AdsManager initialized ' +
+              width +
+              'x' +
+              height
+            );
+
+            mgr.start();
+
+            console.log(
+              '[GAM VIDEO] AdsManager.start() called'
+            );
+
+          } catch (err) {
+
+            console.error(
+              '[GAM VIDEO] init/start failed',
+              err
+            );
+
+            teardown(
+              'init/start failed'
+            );
+
+          }
+
+        },
+        false
+      );
+
+      /*
+       * -------------------------------------------------------
+       * ADS LOADER ERROR
+       * -------------------------------------------------------
+       */
+      loader.addEventListener(
+        IMA.AdErrorEvent.Type.AD_ERROR,
+        function (event) {
+
+          var error =
+            event &&
+            event.getError
+              ? event.getError()
+              : null;
+
+          console.error(
+            '[GAM VIDEO] ADS LOADER AD_ERROR',
+            error
+          );
+
+          if (error) {
+
+            try {
+
+              console.error(
+                '[GAM VIDEO] loader error code:',
+                error.getErrorCode
+                  ? error.getErrorCode()
+                  : ''
+              );
+
+              console.error(
+                '[GAM VIDEO] loader error message:',
+                error.getMessage
+                  ? error.getMessage()
+                  : ''
+              );
+
+            } catch (err) {}
+
+          }
+
+          teardown(
+            'loader AD_ERROR'
+          );
+
+        },
+        false
+      );
+
+      /*
+       * -------------------------------------------------------
+       * VAST REQUEST
+       * -------------------------------------------------------
+       */
+      var req =
+        new IMA.AdsRequest();
+
+      /*
+       * Use the exact generated GAM URL.
+       */
+      req.adTagUrl =
+        freshTag();
+
+      /*
+       * Player dimensions.
+       */
+      req.linearAdSlotWidthPx =
+        300;
+
+      req.linearAdSlotHeightPx =
+        200;
+
+      /*
+       * Autoplay + muted video.
+       */
+      try {
+
+        req.setAdWillAutoPlay(
+          true
+        );
+
+        req.setAdWillPlayMuted(
+          true
+        );
+
+      } catch (err) {}
+
+      console.log(
+        '[GAM VIDEO] requesting VAST'
+      );
+
+      loader.requestAds(
+        req
+      );
+
     }
-    paint(countEl, 1); paint(count2El, 1);
-    tickTimer = setTimeout(tick, 1000);
+
+    /*
+     * -------------------------------------------------------
+     * COUNTDOWN
+     * -------------------------------------------------------
+     */
+    function tick() {
+
+      if (done) {
+        return;
+      }
+
+      remaining--;
+
+      updateCountdown();
+
+      if (remaining > 0) {
+
+        tickTimer =
+          setTimeout(
+            tick,
+            1000
+          );
+
+      } else {
+
+        /*
+         * Small delay after reaching 0.
+         */
+        tickTimer =
+          setTimeout(
+            startAd,
+            400
+          );
+
+      }
+
+    }
+
+    /*
+     * Initial state.
+     */
+    updateCountdown();
+
+    /*
+     * Start 8-second countdown.
+     */
+    tickTimer =
+      setTimeout(
+        tick,
+        1000
+      );
+
   }
+
+  /*
+   * Start first cycle.
+   */
   runCycle();
+
 })();
 </script>`;
 }

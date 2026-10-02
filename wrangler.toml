@@ -85,7 +85,7 @@ GAM_BOTTOM_AD_SIZES = "300x250"
 # this unit currently returns an EMPTY VAST (HTTP 200, <Ad>=0) because no line item is booked on it yet, so
 # the box will hide cleanly on no-fill instead of playing. Once you book + activate a Video line item with a
 # video creative targeting this unit, the SAME tag fills and the box plays your real ad automatically. Empty value = no left video box.
-GAM_LEFT_VIDEO_AD_TAG = "https://securepubads.g.doubleclick.net/gampad/ads?gdfp_req=1&env=vp&impl=s&output=xml_vast4&vpos=preroll&iu=/23338698373/xixvideohub_video_preroll_01&sz=400x300&ciu_szs=300x250,728x90&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
+GAM_LEFT_VIDEO_AD_TAG="https://securepubads.g.doubleclick.net/gampad/ads?gdfp_req=1&env=vp&impl=s&output=xml_vast4&vpos=preroll&iu=/23338698373/xixvideohub_video_preroll_01&sz=400x300&ciu_szs=300x250,728x90&unviewed_position_start=1&description_url=https%3A%2F%2Fxixvideohub.com&correlator=[TIMESTAMP]"
 # GPT WEB INTERSTITIAL (the real out-of-page format, NOT a custom overlay and NOT AdMob):
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
