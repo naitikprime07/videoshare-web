@@ -1829,29 +1829,20 @@ function videoRail(c) {
 }
 
 /**
- * GPT **Web Interstitial** — the real out-of-page format. No custom overlay, no display sizes, no
- * size mapping, no fake div: the slot is created with
- * googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.INTERSTITIAL), registered with
- * pubads via addService(), displayed exactly once, and GPT itself builds/presents/sizes/closes the
- * full-page container.
+ * Custom interstitial overlay — reproduces the Google "vignette" look (reference image 2):
+ * a full-screen DARK + BLURRED backdrop (page shows through, blurred) with a small centered ad
+ * card + our own Close button.
  *
- * Manager state (one manager per page, no permanent one-shot lock):
- *   IDLE → LOADING (defining slot) → READY (request sent) → SHOWING (filled + revealed)
- *        → closed → IDLE            ...any failure → fallback → IDLE
- * On every exit path the slot is destroyed with googletag.destroySlots(), so a consumed slot can
- * never be re-displayed or reused and the next eligible attempt builds a FRESH slot. Duplicate
- * protection is the state check (a request while not IDLE is ignored) plus the window.gamInterstitial
- * singleton guard (a second script copy adds no listeners and no second request).
+ * WHY not the GPT web-interstitial: the GAM web-interstitial renders the creative as a full-screen
+ * cross-origin canvas that paints its OWN opaque background (grey/black) ON TOP of anything we add,
+ * so a page-blur behind it can never show (that was reference image 1). The only way to get the
+ * blurred-page look is to own the overlay ourselves and render the ad as a normal Display slot.
  *
- * Trigger: unchanged product behaviour — GAM_INTERSTITIAL_DELAY_SEC (20) after page load, which only
- * decides WHEN the request goes out. Google still decides when the creative may be revealed (its
- * eligible-user-action policy) and enforces its own frequency cap (~1 impression / 10 min / subdomain).
- *
- * Fallback: GPT missing or slow (GPT_WAIT_MS), unsupported enums, defineOutOfPageSlot() === null, no
- * fill, or filled-but-never-revealed (SHOW_CAP_MS) all release the slot and return to IDLE. This code
- * never overlays anything, never locks scrolling and never leaves the page waiting — app flow always
- * continues. GPT itself is loaded exactly once by gptHead(); commands here are queued on googletag.cmd
- * so a slow tag is still safe. Logs tagged [GAM INTERSTITIAL]. '' when the unit var is unset.
+ * The card uses GAM_INTERSTITIAL_AD_UNIT (…display_interstitial_01) defined as a regular Display
+ * slot (300x250 / 300x600 / fluid). If that GAM unit is configured as Display it fills exactly like
+ * the right-panel display ads; if it is an out-of-page-only unit it will no-fill and we simply do
+ * not show the overlay (safe). Timing (GAM_INTERSTITIAL_DELAY_SEC) and the window.gamInterstitial
+ * singleton handle are preserved; video / top / bottom / left / right / auto-refresh are untouched.
  */
 function interstitialManager(c) {
   const unit = String(c.env.GAM_INTERSTITIAL_AD_UNIT || "").trim();
@@ -1861,174 +1852,136 @@ function interstitialManager(c) {
   (function () {
     var UNIT = ${JSON.stringify(unit)};
     var DELAY_SEC = ${isNaN(delay) ? 20 : delay};
-  var SHOW_CAP_MS = 120000;   // give GPT's action/frequency reveal gate up to 2 minutes before we release
-                              // (60s was too tight and killed legit interstitials that would have shown on
-                              // the next scroll / idle / unhide event; 120s is a safer upper bound).
-  var GPT_WAIT_MS = 15000;    // grace for gpt.js to execute our queued command
-  function log(m) { console.log('[GAM INTERSTITIAL] ' + m); }
-  if (window.gamInterstitial) { log('manager already initialised - skipping duplicate'); return; }
-  log('initializing');
+    var GPT_WAIT_MS = 15000;
+    var OVERLAY_ID = 'xix-inter-overlay';
+    var CARD_ID = 'xix-inter-card';
+    function log(m) { console.log('[GAM INTERSTITIAL] ' + m); }
+    if (window.gamInterstitial) { log('manager already initialised - skipping duplicate'); return; }
+    log('initializing (custom overlay mode)');
 
-  var state = 'IDLE', slot = null, renderHandler = null, pollTimer = null;
-  var forcedOverlay = false; // true once forceReveal() has taken over presentation (see track()).
+    var state = 'IDLE', slot = null, renderHandler = null, opened = false;
 
-  // Release everything and go back to IDLE. kind: 'fallback' (ad unavailable) or 'completed'.
-  function release(reason, kind) {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    if (renderHandler) {
-      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); }
-      catch (err) {}
-      renderHandler = null;
+    // Blurred dark backdrop + centered card + Close, injected once.
+    function ensureCss() {
+      if (document.getElementById('xix-inter-css')) return;
+      var s = document.createElement('style');
+      s.id = 'xix-inter-css';
+      s.textContent =
+        '#' + OVERLAY_ID + '{position:fixed;inset:0;width:100vw;height:100vh;' +
+          'background:rgba(52,58,65,0.5);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);' +
+          'z-index:2147483640;display:flex;align-items:center;justify-content:center;' +
+          'opacity:0;visibility:hidden;transition:opacity .25s ease;}' +
+        '#' + OVERLAY_ID + '.xix-inter-open{opacity:1;visibility:visible;}' +
+        '.xix-inter-stack{position:relative;display:flex;flex-direction:column;align-items:flex-end;}' +
+        '#' + CARD_ID + '{position:relative;background:#fff;border-radius:12px;box-shadow:0 12px 48px rgba(0,0,0,.45);' +
+          'min-width:300px;min-height:250px;max-width:92vw;max-height:85vh;overflow:hidden;}' +
+        '.close-button-outer{cursor:pointer;padding:6px 10px;margin:0 0 8px;border:0;background:none;' +
+          'font-family:Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent;}' +
+        '.close-button-outer:focus{outline:none;}' +
+        '.close-button .continue-prompt-text{color:#fff;font-size:16px;font-weight:700;line-height:1.2;' +
+          'text-shadow:0 1px 2px rgba(0,0,0,.4);}';
+      (document.head || document.documentElement).appendChild(s);
     }
-    // Undo any forced-reveal overlay we injected (see forceReveal()). Safe no-op if never forced.
-    if (forcedOverlay) {
-      forcedOverlay = false;
-      try { document.body.style.overflow = ''; } catch (err) {}
-      var n = container();
-      if (n) { try { n.removeAttribute('style'); } catch (err) {} }
+
+    function buildOverlay() {
+      if (document.getElementById(OVERLAY_ID)) return;
+      ensureCss();
+      var ov = document.createElement('div');
+      ov.id = OVERLAY_ID;
+      ov.setAttribute('aria-hidden', 'true');
+      // Vignette-style dismiss: .close-button-outer > .close-button > .continue-prompt-text ("Close"),
+      // sitting above the card, right-aligned — same layout as the Google native interstitial.
+      var stack = document.createElement('div');
+      stack.className = 'xix-inter-stack';
+      var closeOuter = document.createElement('div');
+      closeOuter.className = 'close-button-outer';
+      closeOuter.id = 'dismiss-button';
+      closeOuter.setAttribute('aria-label', 'Close ad');
+      closeOuter.setAttribute('role', 'button');
+      closeOuter.setAttribute('tabindex', '0');
+      var closeInner = document.createElement('div');
+      closeInner.className = 'close-button';
+      closeInner.id = 'dismiss-button-element';
+      var closeText = document.createElement('div');
+      closeText.className = 'continue-prompt-text';
+      closeText.textContent = 'Close';
+      closeInner.appendChild(closeText);
+      closeOuter.appendChild(closeInner);
+      var dismiss = function () { closeInterstitial('user closed'); };
+      closeOuter.addEventListener('click', dismiss);
+      closeOuter.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); }
+      });
+      var card = document.createElement('div');
+      card.id = CARD_ID;
+      var ad = document.createElement('div');
+      ad.id = 'xix-inter-ad';
+      card.appendChild(ad);
+      stack.appendChild(closeOuter);
+      stack.appendChild(card);
+      ov.appendChild(stack);
+      ov.addEventListener('click', function (e) { if (e.target === ov) closeInterstitial('backdrop tap'); });
+      document.body.appendChild(ov);
     }
-    if (slot) { try { window.googletag.destroySlots([slot]); } catch (err) {} slot = null; }
-    state = 'IDLE';
-    log(kind + ' - ' + reason + ' - slot released, page flow unaffected');
-  }
 
-  function container() { try { return document.getElementById(slot.getSlotElementId()); } catch (err) { return null; } }
-  function onScreen(node) {
-    if (!node) return false;
-    var cs = window.getComputedStyle(node);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
-    var r = node.getBoundingClientRect();
-    return r.width > 80 && r.height > 80;
-  }
+    function closeInterstitial(reason) {
+      if (!opened) return;
+      opened = false;
+      var ov = document.getElementById(OVERLAY_ID);
+      if (ov) ov.classList.remove('xix-inter-open');
+      try { document.body.style.overflow = ''; } catch (e) {}
+      if (renderHandler) { try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (e) {} renderHandler = null; }
+      if (slot) { try { window.googletag.destroySlots([slot]); } catch (e) {} slot = null; }
+      setTimeout(function () { var n = document.getElementById(OVERLAY_ID); if (n && !opened) n.remove(); }, 260);
+      state = 'IDLE';
+      log('closed (' + reason + ') - overlay removed, page restored');
+    }
 
-  // Force GPT's already-rendered interstitial container to be visible as a full-screen
-  // overlay. GPT fills the slot but its own reveal gate only fires on tab-unhide / nav-bar /
-  // endOfArticle / first-visit-inactivity — none of which happen reliably for a normal visitor
-  // who just opened the page. This gives the SAME-page reveal the user asked for while still
-  // using GPT's real INTERSTITIAL format (Latest3 remains the refused one).
-  function forceReveal() {
-    var node = container();
-    if (!node) { log('forceReveal: container element not found'); return false; }
-    // Reveal ONLY. We deliberately set NO background (and no forced width/height/border/padding)
-    // so we add nothing behind the creative — whatever the ad renders from its own side is exactly
-    // what shows. We only flip it visible and lift it above the page. display is intentionally NOT
-    // !important so GPT's own "Close" link can hide it again and our poll releases cleanly.
-    node.style.cssText =
-      'display:inline-block;position:fixed !important;inset:0 !important;'+
-      'z-index:2147483646 !important;visibility:visible !important;opacity:1 !important;';
-    try { document.body.style.overflow = 'hidden'; } catch (e) {}
-    forcedOverlay = true;
-    log('forced same-page reveal (GPT action gate did not fire)');
-    return true;
-  }
+    function openOverlay() {
+      if (opened) return;
+      opened = true;
+      buildOverlay();
+      var ov = document.getElementById(OVERLAY_ID);
+      if (ov) { void ov.offsetWidth; ov.classList.add('xix-inter-open'); }
+      try { document.body.style.overflow = 'hidden'; } catch (e) {}
+      state = 'SHOWING';
+      log('interstitial shown (custom overlay)');
+    }
 
-  // GPT owns the ad request + creative rendering. We watch its container; if the creative has
-  // filled but GPT's own reveal gate hasn't fired within FORCE_AFTER_MS, we manually present it.
-  function track() {
-    var revealed = false, t0 = Date.now();
-    var FORCE_AFTER_MS = 3000; // 3s grace for GPT to reveal on its own, then we take over.
-    var forced = false;
-    pollTimer = setInterval(function () {
-      var node = container();
-      if (onScreen(node)) {
-        if (!revealed) {
-          revealed = true;
-          state = 'SHOWING';
-          log('interstitial shown' + (forced ? ' (forced reveal)' : ''));
-        }
-        return;
-      }
-      // Not on-screen yet. If GPT hasn't revealed it within the grace window, force it once.
-      if (!forced && Date.now() - t0 > FORCE_AFTER_MS) {
-        forced = true;
-        forceReveal();
-        return;
-      }
-      if (revealed) { log('interstitial closed'); release('closed by user', 'completed'); return; }
-      if (Date.now() - t0 > SHOW_CAP_MS) {
-        release('filled but not revealed within ' + (SHOW_CAP_MS / 1000) + 's (Google action/frequency gating)', 'fallback');
-      }
-    }, 500);
-  }
+    // Build the Display slot inside our card and request the ad. Only reveal once it actually fills.
+    function show() {
+      if (state === 'SHOWING') { log('show skipped - already open'); return; }
+      window.googletag = window.googletag || { cmd: [] };
+      var ran = false;
+      var guard = setTimeout(function () {
+        if (ran) return;
+        state = 'IDLE';
+        log('fallback - GPT not ready within ' + (GPT_WAIT_MS / 1000) + 's - no overlay shown');
+      }, GPT_WAIT_MS);
+      window.googletag.cmd.push(function () {
+        ran = true;
+        clearTimeout(guard);
+        state = 'LOADING';
+        buildOverlay();
+        slot = window.googletag.defineSlot(UNIT, [[300, 250], [300, 600], 'fluid'], 'xix-inter-ad');
+        if (!slot) { state = 'IDLE'; log('fallback - defineSlot returned null (is the unit a Display type?)'); return; }
+        slot.addService(window.googletag.pubads());
+        renderHandler = function (e) {
+          if (!e || e.slot !== slot) return;
+          try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
+          renderHandler = null;
+          if (e.isEmpty) { state = 'IDLE'; log('no fill - overlay not shown'); return; }
+          openOverlay();
+        };
+        window.googletag.pubads().addEventListener('slotRenderEnded', renderHandler);
+        window.googletag.display('xix-inter-ad');
+        log('requesting interstitial display slot');
+      });
+    }
 
-  // Claim the SINGLE-PER-PAGE GPT INTERSTITIAL slot the instant GPT is ready (at load, NOT after the
-  // delay), so OUR out-of-page slot holds the format BEFORE Google's auto-ads page-level interstitial
-  // (Latest3) can take it. The delay timer only fires display() — the actual request/reveal.
-  function claimSlot() {
-    state = 'LOADING';
-    log('claiming web interstitial slot');
-    var ran = false;
-    var guard = setTimeout(function () {
-      if (ran) return;
-      release('GPT did not become ready within ' + (GPT_WAIT_MS / 1000) + 's', 'fallback');
-    }, GPT_WAIT_MS);
-    window.googletag = window.googletag || { cmd: [] };
-    window.googletag.cmd.push(function () {
-      ran = true;
-      clearTimeout(guard);
-      log('GPT ready');
-
-      var F = window.googletag.enums && window.googletag.enums.OutOfPageFormat;
-      if (!F || !F.INTERSTITIAL) {
-        return release('OutOfPageFormat.INTERSTITIAL unavailable in this environment', 'fallback');
-      }
-
-      slot = window.googletag.defineOutOfPageSlot(UNIT, F.INTERSTITIAL);
-      if (!slot) {
-        return release('defineOutOfPageSlot returned null (another interstitial already holds the per-page slot)', 'fallback');
-      }
-
-      // Interstitial trigger config: current GPT build only accepts the OLDER boolean-form
-      // triggers on Slot.setConfig — the modern keys (adViewable / scroll / inactivity:{threshold}/
-      // unhideWindow:{threshold}) are all rejected by GPT with a 'Invalid value encountered'
-      // warning (goo.gle/gpt-message#159), which causes the interstitial to fill but NEVER reveal.
-      // Reverting to the exact older boolean form that was previously verified on live to render
-      // the full-screen creative. Wrapped in try/catch so any future GPT tightening cannot abort
-      // the claim cmd.
-      try {
-        slot.setConfig({ interstitial: { triggers: {
-          navBar: true,
-          unhideWindow: true,
-          inactivity: true,
-          endOfArticle: true
-        } } });
-      } catch (cfgErr) {
-        log('slot.setConfig triggers failed (continuing with GPT defaults): ' +
-            (cfgErr && cfgErr.message ? cfgErr.message : cfgErr));
-      }
-      slot.addService(window.googletag.pubads());
-
-      state = 'READY';
-      log('slot claimed - will display after the ' + DELAY_SEC + 's timer');
-    });
-  }
-
-  // After the delay, attach the render handler + display() the already-claimed slot. If GPT is still
-  // loading, poll once a second until the claim resolves (READY) or fell back (IDLE).
-  function show() {
-    if (state === 'IDLE') { log('show skipped - manager already released'); return; }
-    if (state !== 'READY') { setTimeout(show, 1000); return; }
-    state = 'LOADING';
-    log('displaying web interstitial');
-
-    renderHandler = function (e) {
-      if (!e || e.slot !== slot) return;
-      try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
-      renderHandler = null;
-      log('render event');
-      if (e.isEmpty) { return release('no fill', 'fallback'); }
-      log('ad received - GPT presents the web interstitial');
-    };
-    window.googletag.pubads().addEventListener('slotRenderEnded', renderHandler);
-    window.googletag.display(slot);
-    track();
-  }
-
-  // debug handle only: window.gamInterstitial.show() / .state()
-  window.gamInterstitial = { show: show, state: function () { return state; } };
-  claimSlot();
-  setTimeout(show, DELAY_SEC * 1000);
-})();
+    window.gamInterstitial = { show: show, close: closeInterstitial, state: function () { return state; } };
+    setTimeout(show, DELAY_SEC * 1000);
+  })();
 </script>`;
 }
 
