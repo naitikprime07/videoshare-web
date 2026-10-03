@@ -1860,6 +1860,7 @@ function interstitialManager(c) {
     log('initializing (custom overlay mode)');
 
     var state = 'IDLE', slot = null, renderHandler = null, opened = false;
+    var attempts = 0, MAX_ATTEMPTS = 3, RETRY_MS = 10000;
 
     // Blurred dark backdrop + centered card + Close, injected once.
     function ensureCss() {
@@ -1949,14 +1950,32 @@ function interstitialManager(c) {
     }
 
     // Build the Display slot inside our card and request the ad. Only reveal once it actually fills.
+    // Mobile reality: the first request often no-fills (tab was backgrounded / screen off when the
+    // timer fired, slow connections, GAM serving variance) — and a leaked slot would make every later
+    // attempt fail with defineSlot===null. So each failed attempt FULLY releases the slot and we
+    // retry up to MAX_ATTEMPTS times, RETRY_MS apart.
+    function releaseAttempt() {
+      if (renderHandler) { try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (e) {} renderHandler = null; }
+      if (slot) { try { window.googletag.destroySlots([slot]); } catch (e) {} slot = null; }
+      var ov = document.getElementById(OVERLAY_ID);
+      if (ov && !opened) ov.remove();
+      state = 'IDLE';
+    }
+    function failedAttempt(why) {
+      releaseAttempt();
+      if (attempts < MAX_ATTEMPTS) { log(why + ' - retry ' + attempts + '/' + MAX_ATTEMPTS + ' in ' + (RETRY_MS / 1000) + 's'); setTimeout(show, RETRY_MS); }
+      else log(why + ' - giving up after ' + attempts + ' attempts');
+    }
     function show() {
       if (state === 'SHOWING') { log('show skipped - already open'); return; }
+      if (state === 'LOADING') { log('show skipped - request already in flight'); return; }
+      attempts += 1;
       window.googletag = window.googletag || { cmd: [] };
       var ran = false;
       var guard = setTimeout(function () {
         if (ran) return;
-        state = 'IDLE';
-        log('fallback - GPT not ready within ' + (GPT_WAIT_MS / 1000) + 's - no overlay shown');
+        log('fallback - GPT not ready within ' + (GPT_WAIT_MS / 1000) + 's');
+        failedAttempt('GPT not ready');
       }, GPT_WAIT_MS);
       window.googletag.cmd.push(function () {
         ran = true;
@@ -1964,23 +1983,35 @@ function interstitialManager(c) {
         state = 'LOADING';
         buildOverlay();
         slot = window.googletag.defineSlot(UNIT, [[300, 250], [300, 600], 'fluid'], 'xix-inter-ad');
-        if (!slot) { state = 'IDLE'; log('fallback - defineSlot returned null (is the unit a Display type?)'); return; }
+        if (!slot) { failedAttempt('defineSlot returned null (is the unit a Display type?)'); return; }
         slot.addService(window.googletag.pubads());
         renderHandler = function (e) {
           if (!e || e.slot !== slot) return;
           try { window.googletag.pubads().removeEventListener('slotRenderEnded', renderHandler); } catch (err) {}
           renderHandler = null;
-          if (e.isEmpty) { state = 'IDLE'; log('no fill - overlay not shown'); return; }
+          if (e.isEmpty) { failedAttempt('no fill'); return; }
           openOverlay();
         };
         window.googletag.pubads().addEventListener('slotRenderEnded', renderHandler);
         window.googletag.display('xix-inter-ad');
-        log('requesting interstitial display slot');
+        log('requesting interstitial display slot (attempt ' + attempts + ')');
       });
     }
 
     window.gamInterstitial = { show: show, close: closeInterstitial, state: function () { return state; } };
-    setTimeout(show, DELAY_SEC * 1000);
+    // Phones pause/suppress ad requests while the tab is hidden (screen off, another app open).
+    // If the timer fires when the page isn't visible, wait until the user actually sees the page.
+    setTimeout(function () {
+      if (!document.hidden) { show(); return; }
+      var onVis = function () {
+        if (document.hidden) return;
+        document.removeEventListener('visibilitychange', onVis);
+        log('page became visible - starting request');
+        show();
+      };
+      document.addEventListener('visibilitychange', onVis);
+      log('timer fired while page hidden - waiting for page to become visible');
+    }, DELAY_SEC * 1000);
   })();
 </script>`;
 }
