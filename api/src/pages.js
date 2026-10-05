@@ -166,8 +166,10 @@ export function privacyPage(c) {
 }
 
 export function assetLinks(c) {
+  // ANDROID_SHA256 accepts any number of fingerprints, separated by commas and/or line breaks —
+  // each becomes one entry of the sha256_cert_fingerprints array Android reads from this file.
   const fingerprints = (c.env.ANDROID_SHA256 || "")
-    .split(",")
+    .split(/[^0-9A-Fa-f:]+/)
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean);
   return c.json([
