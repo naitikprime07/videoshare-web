@@ -42,7 +42,7 @@ SUPPORT_EMAIL = "support@XIXVideoDownload.com"
 # ---- Android App Links (must match the Android app) ----
 ANDROID_PACKAGE = "com.xixvideo.ultimatemedia.downloader"
 # SHA-256 of the *Play App Signing* key (Play Console -> Setup -> App integrity). Comma separated.
-ANDROID_SHA256 = "5F:76:64:BD:C8:4A:B1:E6:15:84:D5:91:DB:B2:3B:CE:7C:F9:62:72:82:A9:50:5F:EB:BB:DB:9A:CB:EF:40:D2"
+ANDROID_SHA256 = "16:6B:6C:4C:E1:5D:A7:60:BF:01:50:F1:5D:3E:F3:A1:90:DC:65:3C:69:03:80:8B:3B:8F:A0:A1:74:F2:29:EF"
 
 # ---- iOS Universal Links (optional, leave empty if no iOS app) ----
 IOS_APP_ID = ""
