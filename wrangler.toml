@@ -83,14 +83,13 @@ GAM_TOP_AD_UNIT = "/23338698373/xixvideohub_display_top_01"
 GAM_BOTTOM_AD_UNIT = "/23338698373/xixvideohub_display_bottom_01"
 GAM_TOP_AD_SIZES = "300x250"
 GAM_BOTTOM_AD_SIZES = "300x250"
-# LEFT sticky VIDEO ad box = a custom dark UI (Advertisement + countdown + X, Preroll placeholder)
-# powered by the IMA SDK. GAM_LEFT_VIDEO_AD_TAG is a full VAST URL (or a GAM video unit path); the code
-# replaces [TIMESTAMP] with Date.now() for a unique correlator each ~30s cycle. Now pointed at YOUR own
-# GAM video unit (/23338698373/xixvideohub_video_preroll_01) as an in-stream VAST 4.0 preroll. NOTE:
-# this unit currently returns an EMPTY VAST (HTTP 200, <Ad>=0) because no line item is booked on it yet, so
-# the box will hide cleanly on no-fill instead of playing. Once you book + activate a Video line item with a
-# video creative targeting this unit, the SAME tag fills and the box plays your real ad automatically. Empty value = no left video box.
-GAM_LEFT_VIDEO_AD_TAG="https://pubads.g.doubleclick.net/gampad/ads?iu=/23338698373/xixvideohub_video_preroll_02&description_url=[DESCRIPTION_URL]&tfcd=0&npa=0&sz=400x300%7C640x480&gdfp_req=1&unviewed_position_start=1&output=vast&env=vp&impl=s&plcmt=1&vpos=preroll&vpa=click&vpmute=0&correlator=[TIMESTAMP]"
+# LEFT slide-in BANNER (replaces the old IMA video box, which never filled — no booked video inventory).
+# bannerSlider() renders this as a normal GPT Display slot in a card that glides in from the left,
+# rests bottom corner, glides out to the right and loops — on mobile AND desktop. Currently shares
+# the proven-fillable right-side unit path; for best results create a dedicated
+# xixvideohub_display_left_01 Display unit (300x250) in GAM and paste its path here. Empty = disabled.
+GAM_LEFT_AD_UNIT = "/23338698373/xixvideohub_display_left_01"
+GAM_LEFT_AD_SIZES = "300x250"
 # interstitialManager() calls googletag.defineOutOfPageSlot(unit, googletag.enums.OutOfPageFormat.
 # INTERSTITIAL) + addService + display() once — GPT builds, sizes, presents and closes its own
 # full-page container. No defineSlot, no display sizes, no size mapping for this unit, so the unit
@@ -103,8 +102,7 @@ GAM_LEFT_VIDEO_AD_TAG="https://pubads.g.doubleclick.net/gampad/ads?iu=/233386983
 # later attempt can request again with a fresh slot. Empty unit = disabled.
 GAM_INTERSTITIAL_AD_UNIT = "/23338698373/xixvideohub_display_interstitial_01"
 GAM_INTERSTITIAL_DELAY_SEC = "20"
-# RIGHT floating panel = a display banner (slide-in box + close nub). GAM_LEFT_AD_UNIT stays empty so
-# the left is video-only. Use a DISTINCT fillable 300x250 unit (not the same as top/bottom, or GPT dedupes).
+# RIGHT floating panel = a display banner (slide-in box + close nub).
 GAM_RIGHT_AD_UNIT = "/23338698373/xixvideohub_display_right_01"
 GAM_RIGHT_AD_SIZES = "300x250"
 GAM_AD_SIZES = "300x250"

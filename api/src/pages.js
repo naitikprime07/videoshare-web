@@ -365,11 +365,6 @@ const GAM_SLOTS = {
     unitVar: "GAM_BOTTOM_AD_UNIT",
     sizesVar: "GAM_BOTTOM_AD_SIZES",
   },
-  left: {
-    id: "gam-left",
-    unitVar: "GAM_LEFT_AD_UNIT",
-    sizesVar: "GAM_LEFT_AD_SIZES",
-  },
   right: {
     id: "gam-right",
     unitVar: "GAM_RIGHT_AD_UNIT",
@@ -401,9 +396,10 @@ function sizeList(raw) {
 }
 
 // One-time head include (gpt.js is injected exactly once, enableServices() called exactly once):
-// the gpt.js loader + a defineSlot per configured inline region (top/bottom/left/right). Each slot
+// the gpt.js loader + a defineSlot per configured inline region (top/bottom/right). Each slot
 // is registered in window.__gamDisplaySlots so adAutoRefresh() can refresh exactly those slots —
-// the interstitial + IMA video box are NOT registered there, so they're excluded by construction.
+// the slide-in banner + the interstitial overlay are NOT registered there, so they're excluded
+// by construction.
 function gptHead(c) {
   const defs = Object.entries(GAM_SLOTS)
     .filter(([, s]) => String(c.env[s.unitVar] || "").trim())
@@ -438,1396 +434,120 @@ function adRegion(c, rawHtml, region) {
   return slot ? adSlot(slot) : "";
 }
 
-/** Build an IMA ad-tag URL from a GAM video unit path, or pass through a full VAST/https URL. */
-function imaAdTagUrl(env, pathOrUrl) {
-  const raw = String(pathOrUrl || "").trim();
-  if (!raw) return "";
-  if (/^https?:/i.test(raw)) return raw;
-  const desc = encodeURIComponent(String(env.BASE_URL || env.PUBLIC_URL || ""));
-  return `https://pubads.g.doubleclick.net/gampad/ads?iu=${raw}&env=vp&impl=s&gdfp_req=1&output=xml_vast2&uncovered_ad=1&description_url=${desc}`;
-}
-
 /**
- * Left sticky VIDEO ad box using Google IMA SDK + GAM VAST.
+ * Left-in / right-out SLIDE-IN BANNER — replaces the old IMA video rail (that unit had no booked
+ * inventory and never played). A compact white card glides in from off-screen LEFT, parks at the
+ * bottom-left corner (desktop) / bottom-centre (mobile), rests SHOW_MS, then glides OUT to the
+ * RIGHT and loops back in from the left — a continuous conveyor motion that works in both views.
  *
- * Flow:
- * 1. Show custom Advertisement UI.
- * 2. 8-second countdown.
- * 3. Request GAM VAST preroll.
- * 4. Play one creative.
- * 5. Destroy IMA objects after the cycle.
- * 6. Reload after GAM_AD_REFRESH_SEC.
- *
- * GAM_LEFT_VIDEO_AD_TAG must contain the full GAM VAST URL.
- * [TIMESTAMP] is replaced with Date.now() for each request.
+ * The card holds GAM_LEFT_AD_UNIT as a normal GPT Display slot (sizes: GAM_LEFT_AD_SIZES → shared
+ * GAM_AD_SIZES fallback). It is deliberately NOT part of GAM_SLOTS/__gamDisplaySlots: gptHead
+ * never defines it and adAutoRefresh never touches it — instead the slider refreshes ITS OWN slot
+ * only, on the same GAM_AD_REFRESH_SEC cadence (min 30s, 0 disables) and only while the tab is
+ * visible. Nothing animates unless the slot actually FILLS — no fill = nothing ever appears. The ×
+ * button only dismisses the CURRENT appearance early — after a 30s cooldown the slide-in loop
+ * resumes (same "comes back" behaviour as auto ads; nothing stays permanently hidden). Logs tagged
+ * [GAM SLIDER]. '' when the unit var is unset.
  */
-function videoRail(c) {
-  const tag = imaAdTagUrl(c.env, c.env.GAM_LEFT_VIDEO_AD_TAG);
-
-  if (!tag) return "";
-
+function bannerSlider(c) {
+  const unit = String(c.env.GAM_LEFT_AD_UNIT || "").trim();
+  if (!unit) return "";
   let secs = parseInt(c.env.GAM_AD_REFRESH_SEC, 10);
-
-  if (isNaN(secs)) {
-    secs = 30;
-  }
-
-  secs = Math.max(30, secs);
-
-  return `
-<div id="adbox" class="adbox" aria-label="Advertisement" style="display:none;">
-
-  <div class="adbox-top">
-
-    <span class="adbox-label">
-      Advertisement
-    </span>
-
-    <span
-      class="adbox-count"
-      id="adbox-count"
-    >8</span>
-
-    <button
-      type="button"
-      class="adbox-close"
-      id="adbox-close"
-      aria-label="Close ad"
-    >&times;</button>
-
-  </div>
-
-
-  <div class="adbox-mid">
-
-    <div
-      class="adbox-ph"
-      id="adbox-ph"
-    >
-
-      <span class="gam">
-        Google Ad Manager
-      </span>
-
-      <span class="pre">
-        Preroll
-      </span>
-
-      <span class="secs">
-        <b id="adbox-secs">8</b>
-        Seconds
-      </span>
-
-    </div>
-
-
-    <div
-      class="adbox-ima"
-      id="adbox-ima"
-      style="display:none;"
-    >
-
-      <video
-        id="adbox-video"
-        muted
-        playsinline
-        preload="auto"
-      ></video>
-
-    </div>
-
-  </div>
-
-
-  <div class="adbox-bottom">
-
-    <span
-      class="adbox-count2"
-      id="adbox-count2"
-    >8</span>
-
-    <span
-      class="adbox-help"
-      title="Why this ad?"
-    >?</span>
-
-  </div>
-
+  if (isNaN(secs)) secs = 30;
+  if (secs) secs = Math.max(30, secs);
+  const sizes = sizeList(
+    String(c.env.GAM_LEFT_AD_SIZES || c.env.GAM_AD_SIZES || "").trim(),
+  );
+  return `<div id="xix-slider" aria-label="Advertisement">
+  <button class="xix-sl-close" type="button" aria-label="Close advertisement">&times;</button>
+  <span class="xix-sl-tag">Ad</span>
+  <div id="gam-slider"></div>
 </div>
-
-
-<script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
-
-
+<style>
+#xix-slider{position:fixed;left:0;bottom:90px;width:300px;max-width:calc(100vw - 24px);background:#fff;border-radius:0 12px 12px 0;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:9998;padding:8px;transform:translateX(-105%);transition:transform 1s cubic-bezier(.25,.8,.35,1);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;}
+#xix-slider.xix-sl-in{transform:translateX(14px);}
+#xix-slider.xix-sl-out{transform:translateX(110vw);}
+#xix-slider.xix-sl-off{display:none;}
+/* Same button as the right panel's nub (.floating-ad-toggle): 30px flat black circle. Desktop → side of
+ * the card, vertically centred (mirrored: right panel's nub sits on ITS left edge); mobile → top centre. */
+.xix-sl-close{position:absolute;top:50%;right:-30px;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;border:0;background:#000;color:#fff;font-size:18px;font-weight:bold;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;}
+.xix-sl-tag{position:absolute;bottom:6px;right:10px;font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:#9aa0a6;background:rgba(255,255,255,.85);padding:1px 4px;border-radius:3px;}
+#gam-slider{min-height:250px;display:flex;align-items:center;justify-content:center;}
+@media (max-width:1023px){
+  #xix-slider{left:50%;bottom:14px;border-radius:12px;transform:translateX(-160vw);}
+  #xix-slider.xix-sl-in{transform:translateX(-50%);}
+  #xix-slider.xix-sl-out{transform:translateX(160vw);}
+  /* phones: side nub would hang over the screen edge — same TOP-centre spot as before */
+  .xix-sl-close{top:-42px;left:50%;right:auto;transform:translateX(-50%);}
+}
+</style>
 <script>
 (function () {
-
-  /*
-   * GAM tag from Worker environment.
-   */
-  var TAG_URL =
-    ${JSON.stringify(tag)};
-
-
-  /*
-   * Minimum refresh.
-   */
-  var REFRESH_SEC =
-    ${secs};
-
-
-  /*
-   * Countdown before ad request.
-   */
-  var START = 8;
-
-
-  /*
-   * Prevent duplicate IMA instances.
-   */
-  if (window.__gamVideoBox) {
-
-    console.log(
-      '[GAM VIDEO] already running - skipping duplicate'
-    );
-
-    return;
+  if (window.__xixSliderStarted) return;
+  window.__xixSliderStarted = true;
+  function log(m) { console.log('[GAM SLIDER] ' + m); }
+  var el = document.getElementById('xix-slider');
+  if (!el) { log('fallback - #xix-slider element missing'); return; }
+  var started = false, timer = null, slot = null;
+  var SHOW_MS = 8000, GLIDE_MS = 1100, GAP_MS = 2500, REFRESH_SEC = ${secs}, REAPPEAR_MS = 30000;
+  log('initializing (slide-in banner mode)');
+  el.querySelector('.xix-sl-close').addEventListener('click', function () {
+    // × skips only THIS appearance — the loop (and the 30s refresh) keep running, so the filled
+    // banner glides back in after the cooldown. Nothing is permanently hidden.
+    clearTimeout(timer);
+    el.classList.remove('xix-sl-in');
+    el.classList.add('xix-sl-out');
+    if (started) timer = setTimeout(cycle, REAPPEAR_MS);
+    log('dismissed - glides back in 30s if still filled');
+  });
+  function refreshSelf() {
+    if (!slot || !REFRESH_SEC) return;
+    if (document.hidden) return;   // same budget guard as adAutoRefresh
+    if (document.getElementById('xix-inter-overlay')) return;   // overlay covers it — no point spending a request
+    log('refreshing own slot only');
+    googletag.pubads().refresh([slot]);   // ONLY the slider's own slot
   }
-
-
-  /*
-   * Find original HTML box.
-   */
-  var first =
-    document.getElementById('adbox');
-
-
-  if (!first) {
-
-    console.log(
-      '[GAM VIDEO] adbox not found'
-    );
-
-    return;
+  function cycle() {
+    // While the interstitial overlay is open it covers the whole screen (max z-index) — gliding in
+    // behind it is invisible and wastes a cycle. Wait until the overlay is gone, then resume.
+    if (document.getElementById('xix-inter-overlay')) { timer = setTimeout(cycle, 3000); return; }
+    // Snap back off-screen LEFT without animating, then glide in → rest → glide out RIGHT.
+    el.style.transition = 'none';
+    el.classList.remove('xix-sl-out');
+    void el.offsetWidth;
+    el.style.transition = '';
+    el.classList.add('xix-sl-in');
+    timer = setTimeout(function () {
+      el.classList.remove('xix-sl-in');
+      el.classList.add('xix-sl-out');
+      timer = setTimeout(cycle, GLIDE_MS + GAP_MS);
+    }, SHOW_MS);
   }
-
-
-  /*
-   * Mark global instance.
-   */
-  window.__gamVideoBox = true;
-
-
-  /*
-   * Save HTML template.
-   */
-  var template =
-    first.outerHTML;
-
-
-  /*
-   * Remove original.
-   */
-  first.parentNode.removeChild(first);
-
-
-  /*
-   * Create fresh GAM request URL.
-   *
-   * IMPORTANT:
-   *
-   * Current page:
-   *
-   * https://xixvideohub.com/app/VIDEO_ID
-   *
-   * is automatically used as description_url.
-   */
-  function freshTag() {
-
-    /*
-     * Get current browser URL.
-     */
-    var pageUrl =
-      window.location.href;
-
-
-    /*
-     * Remove hash because it is not useful
-     * for GAM description_url.
-     */
-    try {
-
-      var currentUrl =
-        new URL(pageUrl);
-
-      currentUrl.hash = "";
-
-      pageUrl =
-        currentUrl.toString();
-
-    } catch (err) {
-
-      /*
-       * Keep original URL if URL parsing fails.
-       */
-
-    }
-
-
-    /*
-     * Encode current page URL.
-     */
-    var encodedPageUrl =
-      encodeURIComponent(pageUrl);
-
-
-    /*
-     * New correlator.
-     */
-    var timestamp =
-      Date.now();
-
-
-    /*
-     * Build final URL.
-     */
-    var finalUrl =
-      TAG_URL
-        .replace(
-          '[DESCRIPTION_URL]',
-          encodedPageUrl
-        )
-        .replace(
-          '[TIMESTAMP]',
-          timestamp
-        );
-
-
-    console.log(
-      '[GAM VIDEO] Current page:',
-      pageUrl
-    );
-
-
-    console.log(
-      '[GAM VIDEO] VAST request URL:',
-      finalUrl
-    );
-
-
-    return finalUrl;
-  }
-
-
-  /*
-   * Best-effort play of the page's MAIN content video (any <video> that isn't ours).
-   * Called from teardown() on error / no-fill paths so the user's own video starts
-   * immediately after the preroll request fails, per user policy (no test fallback).
-   */
-  function playMainVideo() {
-
-    var vids =
-      document.querySelectorAll('video');
-
-
-    for (var i = 0; i < vids.length; i++) {
-
-      var v = vids[i];
-
-      if (!v) continue;
-      if (v.id === 'adbox-video') continue;
-      if (v.closest && v.closest('#adbox')) continue;
-
-      try {
-        var p = v.play();
-        if (p && p.catch) {
-          p.catch(function (err) {
-            console.log(
-              '[GAM VIDEO] main video play err:',
-              err
-            );
-          });
-        }
-      } catch (err) {
-        console.warn(
-          '[GAM VIDEO] main video play threw:',
-          err
-        );
-      }
-
-    }
-
-  }
-
-
-  /*
-   * Start one ad cycle.
-   */
-  function runCycle() {
-
-    /*
-     * Create new holder.
-     */
-    var holder =
-      document.createElement('div');
-
-
-    holder.innerHTML =
-      template;
-
-
-    /*
-     * Get ad box.
-     */
-    var box =
-      holder.firstElementChild;
-
-
-    if (!box) {
-
-      console.error(
-        '[GAM VIDEO] Could not create ad box'
-      );
-
-      return;
-    }
-
-
-    /*
-     * Tell site that left ad is active.
-     */
-    window.__xixLeftAdActive = true;
-
-
-    /*
-     * Add to page.
-     */
-    document.body.appendChild(box);
-
-
-    /*
-     * Reveal the box ONLY now (server template ships display:none so nothing
-     * flashes before preflight confirms GAM has a real <Ad> to serve).
-     */
-    box.style.display = '';
-
-
-    /*
-     * Helper.
-     */
-    var q = function (id) {
-
-      return box.querySelector(
-        '#' + id
-      );
-
-    };
-
-
-    /*
-     * Elements.
-     */
-    var countEl =
-      q('adbox-count');
-
-    var count2El =
-      q('adbox-count2');
-
-    var secsEl =
-      q('adbox-secs');
-
-    var ph =
-      q('adbox-ph');
-
-    var ima =
-      q('adbox-ima');
-
-    var video =
-      q('adbox-video');
-
-    var closeButton =
-      q('adbox-close');
-
-
-    /*
-     * State.
-     */
-    var done = false;
-
-    var started = 0;
-
-    var mgr = null;
-
-    var ddc = null;
-
-    var loader = null;
-
-    var tickTimer = null;
-
-    var nextTimer = null;
-
-
-    console.log(
-      '[GAM VIDEO] cycle started ' +
-      new Date().toISOString()
-    );
-
-
-    /*
-     * Close box.
-     */
-    function closeBox() {
-
-      if (
-        box &&
-        box.parentNode
-      ) {
-
-        box.parentNode.removeChild(
-          box
-        );
-
-      }
-
-    }
-
-
-    /*
-     * End cycle.
-     */
-    function teardown(why) {
-
-      if (done) {
+  window.googletag = window.googletag || { cmd: [] };
+  googletag.cmd.push(function () {
+    slot = googletag.defineSlot(${JSON.stringify(unit)}, ${sizes}, 'gam-slider');
+    if (!slot) { log('fallback - defineSlot returned null'); return; }
+    slot.addService(googletag.pubads());
+    googletag.pubads().addEventListener('slotRenderEnded', function (e) {
+      if (e.slot !== slot) return;
+      if (e.isEmpty) {
+        log('no fill' + (started ? ' (on refresh - keeping current creative)' : ' - slider stays hidden'));
+        if (!started) el.classList.add('xix-sl-off');   // never filled → stay hidden
         return;
       }
-
-
-      done = true;
-
-
-      clearTimeout(
-        tickTimer
-      );
-
-
-      clearTimeout(
-        nextTimer
-      );
-
-
-      /*
-       * Destroy AdsManager.
-       */
-      try {
-
-        if (mgr) {
-          mgr.destroy();
-        }
-
-      } catch (err) {
-
-        console.warn(
-          '[GAM VIDEO] manager destroy error:',
-          err
-        );
-
+      if (!started) {
+        started = true;
+        el.classList.remove('xix-sl-off');   // a later refresh can revive an initially no-filled slider
+        log('ad filled - slide-in cycle starting');
+        timer = setTimeout(cycle, 1500);
       }
-
-
-      /*
-       * Destroy display container.
-       */
-      try {
-
-        if (ddc) {
-          ddc.destroy();
-        }
-
-      } catch (err) {
-
-        console.warn(
-          '[GAM VIDEO] display container destroy error:',
-          err
-        );
-
-      }
-
-
-      /*
-       * Remove ad box.
-       */
-      closeBox();
-
-
-      /*
-       * Left ad inactive.
-       */
-      window.__xixLeftAdActive = false;
-
-
-      /*
-       * Notify other site components.
-       */
-      try {
-
-        document.dispatchEvent(
-          new Event(
-            'xix-left-ad-closed'
-          )
-        );
-
-      } catch (err) {}
-
-
-      /*
-       * USER POLICY (Oct 2026): one GAM request per page load.
-       * - NO 30s auto-cycle retry, even after AD_ERROR / 303 no-fill.
-       * - NO test/sample fallback anywhere in the pipeline.
-       * - On error / no-fill / 2nd-ad-blocked paths, hand playback straight back
-       *   to the page's main content video (playMainVideo() finds the non-adbox <video>).
-       */
-      var errMode =
-        /AD_ERROR|missing|failed|blocked|no fill/i.test(
-          why || ''
-        );
-
-
-      console.log(
-        '[GAM VIDEO] cycle ended (' +
-        why +
-        ') - no auto reload' +
-        (errMode ? ' + starting main video' : '')
-      );
-
-
-      if (errMode) {
-
-        try {
-          playMainVideo();
-        } catch (err) {
-          console.warn(
-            '[GAM VIDEO] playMainVideo failed:',
-            err
-          );
-        }
-
-      }
-
-    }
-
-
-    /*
-     * Close button.
-     */
-    if (closeButton) {
-
-      closeButton.addEventListener(
-        'click',
-        function () {
-
-          console.log(
-            '[GAM VIDEO] manual close'
-          );
-
-
-          teardown(
-            'manual close'
-          );
-
-        }
-      );
-
-    }
-
-
-    /*
-     * Countdown circle.
-     */
-    function paint(
-      el,
-      frac
-    ) {
-
-      if (!el) {
-        return;
-      }
-
-
-      el.style.background =
-        'conic-gradient(' +
-        '#4CAF50 ' +
-        (frac * 360) +
-        'deg, ' +
-        'rgba(255,255,255,.14) 0deg)';
-
-    }
-
-
-    /*
-     * Countdown.
-     */
-    var remaining =
-      START;
-
-
-    function tick() {
-
-      if (done) {
-        return;
-      }
-
-
-      remaining -= 1;
-
-
-      var frac =
-        Math.max(
-          0,
-          remaining / START
-        );
-
-
-      if (countEl) {
-
-        countEl.textContent =
-          remaining;
-
-      }
-
-
-      if (count2El) {
-
-        count2El.textContent =
-          remaining;
-
-      }
-
-
-      if (secsEl) {
-
-        secsEl.textContent =
-          remaining;
-
-      }
-
-
-      paint(
-        countEl,
-        frac
-      );
-
-
-      paint(
-        count2El,
-        frac
-      );
-
-
-      if (remaining > 0) {
-
-        tickTimer =
-          setTimeout(
-            tick,
-            1000
-          );
-
-      } else {
-
-        tickTimer =
-          setTimeout(
-            startAd,
-            400
-          );
-
-      }
-
-    }
-
-
-    /*
-     * Start IMA ad.
-     */
-    function startAd() {
-
-      if (done) {
-        return;
-      }
-
-
-      console.log(
-        '[GAM VIDEO] starting IMA ad'
-      );
-
-
-      /*
-       * Hide placeholder.
-       */
-      if (ph) {
-
-        ph.style.display =
-          'none';
-
-      }
-
-
-      /*
-       * Show IMA.
-       */
-      if (ima) {
-
-        ima.style.display =
-          'block';
-
-      }
-
-
-      /*
-       * Get IMA SDK.
-       */
-      var IMA =
-        (window.google &&
-          window.google.ima) ||
-        (window.goog &&
-          window.goog.ima);
-
-
-      if (!IMA) {
-
-        console.error(
-          '[GAM VIDEO] IMA SDK missing'
-        );
-
-
-        teardown(
-          'IMA SDK missing'
-        );
-
-
-        return;
-      }
-
-
-      console.log(
-        '[GAM VIDEO] IMA SDK ready'
-      );
-
-
-      /*
-       * Create display container.
-       */
-      try {
-
-        ddc =
-          new IMA.AdDisplayContainer(
-            ima,
-            video
-          );
-
-
-        ddc.initialize();
-
-
-        console.log(
-          '[GAM VIDEO] AdDisplayContainer initialized'
-        );
-
-      } catch (err) {
-
-        console.error(
-          '[GAM VIDEO] AdDisplayContainer error:',
-          err
-        );
-
-
-        teardown(
-          'AdDisplayContainer failed'
-        );
-
-
-        return;
-      }
-
-
-      /*
-       * Create AdsLoader.
-       */
-      try {
-
-        loader =
-          new IMA.AdsLoader(
-            ddc
-          );
-
-      } catch (err) {
-
-        console.error(
-          '[GAM VIDEO] AdsLoader error:',
-          err
-        );
-
-
-        teardown(
-          'AdsLoader failed'
-        );
-
-
-        return;
-      }
-
-
-      /*
-       * Ads manager loaded.
-       */
-      loader.addEventListener(
-        IMA.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
-        function (event) {
-
-          if (done) {
-            return;
-          }
-
-
-          console.log(
-            '[GAM VIDEO] ADS_MANAGER_LOADED'
-          );
-
-
-          /*
-           * Create AdsManager.
-           */
-          try {
-
-            mgr =
-              event.getAdsManager(
-                video,
-                new IMA.AdsRenderingSettings()
-              );
-
-          } catch (err) {
-
-            console.error(
-              '[GAM VIDEO] getAdsManager failed:',
-              err
-            );
-
-
-            teardown(
-              'getAdsManager failed'
-            );
-
-
-            return;
-          }
-
-
-          /*
-           * Manager AD_ERROR.
-           */
-          mgr.addEventListener(
-            IMA.AdErrorEvent.Type.AD_ERROR,
-            function (event) {
-
-              console.error(
-                '[GAM VIDEO] ADS MANAGER AD_ERROR'
-              );
-
-
-              try {
-
-                var adError =
-                  event.getError
-                    ? event.getError()
-                    : event.error;
-
-
-                console.error(
-                  '[GAM VIDEO] manager error code:',
-                  adError &&
-                  adError.getErrorCode
-                    ? adError.getErrorCode()
-                    : ''
-                );
-
-
-                console.error(
-                  '[GAM VIDEO] manager error message:',
-                  adError &&
-                  adError.getMessage
-                    ? adError.getMessage()
-                    : ''
-                );
-
-
-              } catch (err) {
-
-                console.error(
-                  '[GAM VIDEO] Could not read manager error:',
-                  err
-                );
-
-              }
-
-
-              teardown(
-                'manager AD_ERROR'
-              );
-
-            },
-            false
-          );
-
-
-          /*
-           * Skipped.
-           */
-          mgr.addEventListener(
-            IMA.AdEvent.Type.SKIPPED,
-            function () {
-
-              console.log(
-                '[GAM VIDEO] ad skipped'
-              );
-
-
-              teardown(
-                'skipped'
-              );
-
-            },
-            false
-          );
-
-
-          /*
-           * Completed.
-           */
-          mgr.addEventListener(
-            IMA.AdEvent.Type.COMPLETED,
-            function () {
-
-              console.log(
-                '[GAM VIDEO] ad completed'
-              );
-
-
-              teardown(
-                'completed'
-              );
-
-            },
-            false
-          );
-
-
-          /*
-           * All ads completed.
-           */
-          mgr.addEventListener(
-            IMA.AdEvent.Type.ALL_ADS_COMPLETED,
-            function () {
-
-              console.log(
-                '[GAM VIDEO] all ads completed'
-              );
-
-
-              teardown(
-                'all completed'
-              );
-
-            },
-            false
-          );
-
-
-          /*
-           * Only allow first ad.
-           */
-          mgr.addEventListener(
-            IMA.AdEvent.Type.STARTED,
-            function () {
-
-              started++;
-
-
-              console.log(
-                '[GAM VIDEO] ad STARTED #' +
-                started
-              );
-
-
-              if (started > 1) {
-
-                teardown(
-                  '2nd ad blocked'
-                );
-
-              }
-
-            },
-            false
-          );
-
-
-          /*
-           * Initialize + start.
-           */
-          try {
-
-            var width =
-              ima.clientWidth ||
-              300;
-
-
-            var height =
-              ima.clientHeight ||
-              200;
-
-
-            console.log(
-              '[GAM VIDEO] manager init:',
-              width,
-              height
-            );
-
-
-            mgr.init(
-              width,
-              height,
-              IMA.ViewMode.NORMAL
-            );
-
-
-            console.log(
-              '[GAM VIDEO] manager initialized'
-            );
-
-
-            mgr.start();
-
-
-            console.log(
-              '[GAM VIDEO] manager started'
-            );
-
-
-          } catch (err) {
-
-            console.error(
-              '[GAM VIDEO] manager init/start failed:',
-              err
-            );
-
-
-            teardown(
-              'init/start failed'
-            );
-
-          }
-
-        },
-        false
-      );
-
-
-      /*
-       * Loader AD_ERROR.
-       */
-      loader.addEventListener(
-        IMA.AdErrorEvent.Type.AD_ERROR,
-        function (event) {
-
-          console.error(
-            '[GAM VIDEO] ADS LOADER AD_ERROR'
-          );
-
-
-          try {
-
-            var adError =
-              event.getError
-                ? event.getError()
-                : event.error;
-
-
-            console.error(
-              '[GAM VIDEO] loader error object:',
-              adError
-            );
-
-
-            console.error(
-              '[GAM VIDEO] loader error code:',
-              adError &&
-              adError.getErrorCode
-                ? adError.getErrorCode()
-                : ''
-            );
-
-
-            console.error(
-              '[GAM VIDEO] loader error message:',
-              adError &&
-              adError.getMessage
-                ? adError.getMessage()
-                : ''
-            );
-
-
-            console.error(
-              '[GAM VIDEO] loader error data:',
-              adError
-                ? adError.data
-                : ''
-            );
-
-
-          } catch (err) {
-
-            console.error(
-              '[GAM VIDEO] Could not read loader error:',
-              err
-            );
-
-          }
-
-
-          teardown(
-            'loader AD_ERROR'
-          );
-
-        },
-        false
-      );
-
-
-      /*
-       * Create request.
-       */
-      var req =
-        new IMA.AdsRequest();
-
-
-      /*
-       * Generate dynamic URL.
-       */
-      req.adTagUrl =
-        freshTag();
-
-
-      /*
-       * Video size.
-       */
-      req.linearAdSlotWidthPx =
-        300;
-
-      req.linearAdSlotHeightPx =
-        200;
-
-
-      /*
-       * Tell IMA that the ad will autoplay.
-       */
-      try {
-
-        req.setAdWillAutoPlay(
-          true
-        );
-
-
-        req.setAdWillPlayMuted(
-          true
-        );
-
-      } catch (err) {
-
-        console.warn(
-          '[GAM VIDEO] autoplay flags unavailable:',
-          err
-        );
-
-      }
-
-
-      console.log(
-        '[GAM VIDEO] requesting VAST'
-      );
-
-
-      /*
-       * Request ad.
-       */
-      try {
-
-        loader.requestAds(
-          req
-        );
-
-      } catch (err) {
-
-        console.error(
-          '[GAM VIDEO] requestAds failed:',
-          err
-        );
-
-
-        teardown(
-          'requestAds failed'
-        );
-
-      }
-
-    }
-
-
-    /*
-     * Initial countdown state.
-     */
-    paint(
-      countEl,
-      1
-    );
-
-
-    paint(
-      count2El,
-      1
-    );
-
-
-    /*
-     * Start countdown.
-     */
-    tickTimer =
-      setTimeout(
-        tick,
-        1000
-      );
-
-  }
-
-
-  /*
-   * PREFLIGHT + RETRY (user policy Oct 2026): do NOT mount the ad box unless GAM's
-   * VAST response actually contains an <Ad>. If a real ad exists, run the normal cycle
-   * ONCE. If it's an empty envelope (no demand booked yet) or the fetch fails, keep the
-   * page clean (no box, no countdown, no AD_ERROR flash) and RE-TRY the preflight every
-   * REFRESH_SEC seconds, so the instant GAM starts filling this unit the ad shows WITHOUT
-   * needing a page reload. Retries stop after an ad has been shown. This is a lightweight
-   * availability check, not a test/sample ad request.
-   */
-  var videoAdShown = false;      // true once we successfully run a cycle
-  var preflightTimer = null;     // pending retry timer
-
-  function schedulePreflightRetry() {
-    if (videoAdShown || preflightTimer) return;
-    preflightTimer = setTimeout(function () {
-      preflightTimer = null;
-      preflightAd();
-    }, REFRESH_SEC * 1000);
-    console.log(
-      '[GAM VIDEO] preflight: no ad yet - will retry in ' + REFRESH_SEC + 's'
-    );
-  }
-
-  function preflightAd() {
-
-    if (videoAdShown) {
-      return;
-    }
-
-    var url =
-      freshTag();
-
-
-    if (!url) {
-      return;
-    }
-
-
-    try {
-
-      fetch(
-        url,
-        {
-          method: 'GET',
-          credentials: 'omit',
-          mode: 'cors',
-          cache: 'no-store'
-        }
-      )
-        .then(function (r) {
-          return r.text();
-        })
-        .then(function (xml) {
-
-          var body = xml || '';
-          var hasAd = /<Ad[\s>]/i.test(body);
-
-
-          console.log(
-            '[GAM VIDEO] preflight hasAd=' +
-            hasAd +
-            ' bytes=' +
-            body.length
-          );
-
-
-          if (hasAd) {
-
-            videoAdShown = true;
-            runCycle();
-
-          } else {
-
-            try {
-              playMainVideo();
-            } catch (e) {}
-
-            schedulePreflightRetry();
-
-          }
-
-        })
-        .catch(function (err) {
-
-          console.warn(
-            '[GAM VIDEO] preflight fetch failed:',
-            err
-          );
-
-          // Safe default: if we cannot verify, do NOT show the box - but keep retrying.
-          try {
-            playMainVideo();
-          } catch (e) {}
-
-          schedulePreflightRetry();
-
-        });
-
-    } catch (e) {
-
-      console.warn(
-        '[GAM VIDEO] preflight threw:',
-        e
-      );
-
-      try {
-        playMainVideo();
-      } catch (err) {}
-
-      schedulePreflightRetry();
-
-    }
-
-  }
-
-
-  preflightAd();
-
+    });
+    googletag.display('gam-slider');
+    log('requesting slide-in banner slot');
+    if (REFRESH_SEC) setInterval(refreshSelf, REFRESH_SEC * 1000);
+  });
 })();
-</script>
-`;
+</script>`;
 }
 
 /**
@@ -1844,7 +564,7 @@ function videoRail(c) {
  * slot (300x250 / 300x600 / fluid). If that GAM unit is configured as Display it fills exactly like
  * the right-panel display ads; if it is an out-of-page-only unit it will no-fill and we simply do
  * not show the overlay (safe). Timing (GAM_INTERSTITIAL_DELAY_SEC) and the window.gamInterstitial
- * singleton handle are preserved; video / top / bottom / left / right / auto-refresh are untouched.
+ * singleton handle are preserved; top / bottom / right / slide-in banner / auto-refresh are untouched.
  */
 function interstitialManager(c) {
   const unit = String(c.env.GAM_INTERSTITIAL_AD_UNIT || "").trim();
@@ -2018,53 +738,33 @@ function interstitialManager(c) {
 </script>`;
 }
 
-/** Fixed display-banner floating panels (right, and left if a display unit is set). Slide in when the ad fills. */
+/** Fixed display-banner floating panel (right side only — the left slot is now the slide-in
+ * banner). Slides in when the ad fills. */
 function displayRails(c) {
-  const sides = [
-    { region: "left", side: "left" },
-    { region: "right", side: "right" },
-  ].filter(({ region }) => gamUnit(c.env, region));
-  if (!sides.length) return "";
-  const ids = sides.map(({ region }) => GAM_SLOTS[region].id);
-  const panels = sides
-    .map(({ region, side }) => {
-      const { id } = GAM_SLOTS[region];
-      return `<div class="floating-ad floating-ad-${side}" id="floating-ad-${id}">
-  <div class="floating-ad-content">${gamSlot(c, region)}</div>
+  if (!gamUnit(c.env, "right")) return "";
+  const { id } = GAM_SLOTS.right;
+  const panels = `<div class="floating-ad floating-ad-right" id="floating-ad-${id}">
+  <div class="floating-ad-content">${gamSlot(c, "right")}</div>
   <div class="floating-ad-toggle" data-target="floating-ad-${id}"></div>
 </div>`;
-    })
-    .join("\n");
   const script = `<script>
 (function () {
-  var ids = ${JSON.stringify(ids)};
+  var id = ${JSON.stringify(id)};
   window.googletag = window.googletag || { cmd: [] };
   var AUTO_CLOSE = 6000, SLIDE_IN = 2500;
-  // On mobile the two side ads run ONE-BY-ONE: the right display panel stays queued until the left
-  // video box (.adbox) has closed, so they never overlap on the narrow screen. Desktop pops directly.
-  var MOBILE = window.matchMedia("(max-width: 1023px)").matches;
-  var pending = [];
-  function setPanel(id, on) {
+  function setPanel(on) {
     var el = document.getElementById('floating-ad-' + id);
     if (el) el.classList[on ? 'add' : 'remove']('active');
   }
-  function pop(id) { setPanel(id, true); setTimeout(function () { setPanel(id, false); }, AUTO_CLOSE); }
-  function request(id) {
-    if (!MOBILE || !window.__xixLeftAdActive) { pop(id); return; }
-    if (pending.indexOf(id) === -1) pending.push(id);
-  }
-  document.addEventListener('xix-left-ad-closed', function () {
-    while (pending.length) pop(pending.shift());
-  });
+  function pop() { setPanel(true); setTimeout(function () { setPanel(false); }, AUTO_CLOSE); }
   googletag.cmd.push(function () {
     googletag.pubads().addEventListener('slotRenderEnded', function (e) {
-      var id = e.slot && e.slot.getSlotElementId();
-      if (ids.indexOf(id) !== -1 && !e.isEmpty) request(id);
+      if (e.slot && e.slot.getSlotElementId() === id && !e.isEmpty) pop();
     });
-    ids.forEach(function (id) { setTimeout(function () {
+    setTimeout(function () {
       var el = document.getElementById('floating-ad-' + id);
-      if (el && el.querySelector('iframe')) request(id);
-    }, SLIDE_IN); });
+      if (el && el.querySelector('iframe')) pop();
+    }, SLIDE_IN);
   });
 })();
 </script>`;
@@ -2089,9 +789,10 @@ function railToggleScript() {
  * Auto-refresh loop for the REGULAR GPT display slots (top/bottom banners + floating side panels):
  * calls googletag.pubads().refresh([...]) with ONLY the slots registered by gptHead() in
  * window.__gamDisplaySlots — bare refresh() is never called. The web interstitial (an out-of-page
- * slot created by interstitialManager on its own 20s page-load timer) and the left IMA video box (not
- * a GPT slot at all) are never in that registry, so they are excluded by construction and refresh
- * never touches them. Interval = GAM_AD_REFRESH_SEC (default 30; Google policy minimum is 30s —
+ * slot created by interstitialManager on its own 20s page-load timer) are never in that registry, so
+ * they are excluded by construction and refresh never touches them; the slide-in banner is also
+ * outside the registry but self-refreshes its own private slot on this same cadence (bannerSlider).
+ * Interval = GAM_AD_REFRESH_SEC (default 30; Google policy minimum is 30s —
  * lower values are clamped; 0 disables). Skips a cycle while the tab is hidden to save budget.
  */
 function adAutoRefresh(c) {
@@ -2111,7 +812,7 @@ function adAutoRefresh(c) {
     var reg = window.__gamDisplaySlots || {};
     var slots = Object.keys(reg).map(function (k) { return reg[k]; }).filter(Boolean);
     if (!slots.length) return;
-    console.log('[GAM REFRESH] auto-refresh ON every ' + REFRESH_SEC + 's for display slots only: ' + Object.keys(reg).join(', '));
+    console.log('[GAM REFRESH] auto-refresh ON every ' + REFRESH_SEC + 's for display slots only: ' + Object.keys(reg).join(', ') + ' (+ gam-slider self-refreshing separately)');
     setInterval(function () {
       if (document.hidden) return;                       // don't burn ad budget on an unseen tab
       console.log('[GAM REFRESH] ' + new Date().toISOString() + ' -> refreshing [' + Object.keys(reg).join(', ') + '] only');
@@ -2122,14 +823,14 @@ function adAutoRefresh(c) {
 </script>`;
 }
 
-/** All floating side rails (left video box + display panels), their toggle script + the interstitial. */
+/** The slide-in banner, the right display panel, the interstitial, auto-refresh + rail toggles. */
 function sideRails(c) {
-  const video = videoRail(c);
+  const slider = bannerSlider(c);
   const display = displayRails(c);
   const inter = interstitialManager(c);
   const refresh = adAutoRefresh(c);
-  if (!video && !display && !inter && !refresh) return "";
-  return `${video}${display}${inter}${refresh}\n${railToggleScript()}`;
+  if (!slider && !display && !inter && !refresh) return "";
+  return `${slider}${display}${inter}${refresh}\n${railToggleScript()}`;
 }
 
 function logo(c) {
