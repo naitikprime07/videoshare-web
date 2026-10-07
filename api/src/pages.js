@@ -460,19 +460,20 @@ function bannerSlider(c) {
   );
   return `<div id="xix-slider" aria-label="Advertisement">
   <button class="xix-sl-close" type="button" aria-label="Close advertisement">&times;</button>
-  <span class="xix-sl-tag">Ad</span>
   <div id="gam-slider"></div>
 </div>
 <style>
-#xix-slider{position:fixed;left:0;bottom:90px;width:300px;max-width:calc(100vw - 24px);background:#fff;border-radius:0 12px 12px 0;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:9998;padding:8px;transform:translateX(-105%);transition:transform 1s cubic-bezier(.25,.8,.35,1);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;}
+#xix-slider{position:fixed;left:0;bottom:90px;width:300px;max-width:calc(100vw - 24px);background:#fff;border-radius:0 12px 12px 0;box-shadow:0 8px 28px rgba(0,0,0,.35);z-index:9998;padding:0;transform:translateX(-105%);transition:transform 1s cubic-bezier(.25,.8,.35,1);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;}
 #xix-slider.xix-sl-in{transform:translateX(14px);}
 #xix-slider.xix-sl-out{transform:translateX(110vw);}
 #xix-slider.xix-sl-off{display:none;}
 /* Same button as the right panel's nub (.floating-ad-toggle): 30px flat black circle. Desktop → side of
  * the card, vertically centred (mirrored: right panel's nub sits on ITS left edge); mobile → top centre. */
 .xix-sl-close{position:absolute;top:50%;right:-30px;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;border:0;background:#000;color:#fff;font-size:18px;font-weight:bold;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;}
-.xix-sl-tag{position:absolute;bottom:6px;right:10px;font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:#9aa0a6;background:rgba(255,255,255,.85);padding:1px 4px;border-radius:3px;}
-#gam-slider{min-height:250px;display:flex;align-items:center;justify-content:center;}
+/* No own "Ad" chip — GAM creatives carry their own label, ours just duplicated it (weird look).
+ * The slot wrapper follows the card's radius (0 12 12 0 desktop, 12 mobile via inherit) and clips
+     only the CORNERS of the creative, same treatment as the right panel's .floating-ad-content. */
+#gam-slider{min-height:250px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:inherit;overflow:hidden;}
 @media (max-width:1023px){
   #xix-slider{left:50%;bottom:14px;border-radius:12px;transform:translateX(-160vw);}
   #xix-slider.xix-sl-in{transform:translateX(-50%);}
